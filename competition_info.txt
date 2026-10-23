@@ -1,0 +1,103 @@
+Team1 Vietnam - UniHack
+
+November 2 - 30, 2026
+Ho Chi Minh City, Vietnam
+Register / Join
+About
+Avalanche Team1 Vietnam UniHack is a 30-day journey for students nationwide, where you transform ideas into real-world products on the Avalanche blockchain.
+
+BẠN ĐÃ SẴN SÀNG BUILD TRÊN AVALANCHE?
+​Bạn có ý tưởng. Bạn muốn build. Giờ là lúc tìm đồng đội và bắt đầu.
+
+​Avalanche Team1 Vietnam UniHack là hành trình 30 ngày dành cho sinh viên trên toàn quốc, nơi bạn biến ý tưởng thành sản phẩm thực tế trên blockchain Avalanche.
+
+​Opening Event: 02/11/2026 - Đại học Quốc gia Thành phố Hồ Chí Minh
+​
+
+Tìm hiểu về Avalanche và UniHack
+​Tham gia workshop xây dựng dApp đầu tiên
+​Gặp gỡ và tìm đồng đội
+​Khám phá thử thách của UniHack
+​Bắt đầu hành trình build 30 ngày
+​Final Demo Day: 30/11/2026 - Đại học Tôn Đức Thắng, TP.HCM
+​Sau vòng loại online, 10 đội xuất sắc sẽ bước vào vòng chung kết.
+​Tại Final Demo Day, mỗi đội sẽ:
+
+​Pitching trực tiếp trước ban giám khảo
+​Demo sản phẩm
+​Q&A và bảo vệ ý tưởng
+​Cạnh tranh cho tổng giải thưởng $3,000
+​Công bố danh sách 50 bạn may mắn ở $500 minigame Builder Pass
+​Agenda
+​Week 1 | 2–8 Nov
+Opening Event | 2 Nov
+Avalanche Intro | 2 Nov
+Workshop 1: Build Your First Avalanche dApp | 2 Nov
+Team Formation | 2 Nov
+Challenge Brief | 2 Nov
+
+Week 2 | 9–15 Nov
+Build
+Workshop 2: From Idea to Working MVP | 11 Nov
+Technical Guidance | 12–15 Nov
+
+Week 3 | 16–22 Nov
+Build & Mentorship
+Workshop 3: Ship & Scale Your dApp | 17 Nov
+Office Hours 1 | 19 Nov
+Office Hours 2 | 20 Nov
+
+Week 4 | 23–30 Nov
+Final Submission | 24 Nov
+Screening & Finalist Selection | 27 Nov
+Final Demo Day & Awards | 30 Nov
+​
+
+Cách tham gia
+​1. Đăng ký Luma để tham gia:
+Opening Event
+Final Demo Day
+Workshop
+Office Hour
+
+​Lịch các hoạt động sẽ được cập nhật trên Luma Team1 Vietnam
+
+​2. Learn & Build
+​Tìm hiểu về Avalanche.
+Bắt đầu xây dựng dự án trên Avalanche.
+
+​3. Submit
+Nộp dự án tại https://build.avax.network/events/596c0b2d-63aa-4cf0-a0ad-a7e34ddbfdc0
+
+​4. $3,500 tổng phần thưởng, trong đó:
+​$3,000 dành cho 10 đội vào vòng chung kết.
+$500 dành cho tất cả sinh viên qua minigame Builder Pass - hướng dẫn tại đây: https://team1vn.xyz/
+
+Resources
+Find key resources and support for your journey in Team1 Vietnam - UniHack
+
+Team1 VN Builders Telegram Channel
+Team1 Vietnam X
+Submit Your Project
+Follow the guidelines to submit your hackathon project successfully
+
+Deadline
+Submissions close on November 25, 2026, at 05:59 AM Asia/Bangkok.
+
+Requirements
+Your project must include a GitHub repo, slides for your pitch, and any additional content.
+
+Evaluation Criteria
+Projects will be judged on value proposition, technical complexity and usage of Avalanche technologies
+
+Submission Process
+Submit your project through the Avalanche Builder Hub, add your team members, and upload your GitHub repo, presentation slides along with any other file that support your submission.
+
+Refer a Friend
+View full guidelines
+Submit project
+Community
+Connect with fellow hackers, ask questions, and share your progress.
+
+Join the Telegram chat
+Avalanche Team1 X

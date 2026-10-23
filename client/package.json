@@ -1,0 +1,22 @@
+{
+  "name": "@prism-pact/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Prism Pact browser client — Phaser 3 UI over the typed WebSocket protocol",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@prism-pact/shared": "file:../shared",
+    "phaser": "^3.90.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.7"
+  }
+}

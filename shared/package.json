@@ -1,0 +1,26 @@
+{
+  "name": "@prism-pact/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pure game logic shared by client and server: board, match-3, combat, heroes, skills",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "test": "node --import tsx --test test/match3.test.ts test/combat.test.ts test/skills.test.ts test/battle.test.ts test/draft.test.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "demo": "node --import tsx scripts/demo.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

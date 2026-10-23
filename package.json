@@ -1,0 +1,27 @@
+{
+  "name": "prism-pact",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Prism Pact — match-3 PvP with live draft, on Avalanche",
+  "workspaces": [
+    "shared",
+    "contracts",
+    "server"
+  ],
+  "engines": {
+    "node": ">=20.6"
+  },
+  "scripts": {
+    "test": "npm run test --workspace shared && npm run test --workspace contracts && npm run test --workspace server",
+    "typecheck": "npm run typecheck --workspace shared && npm run typecheck --workspace contracts && npm run typecheck --workspace server && npm --prefix client run typecheck",
+    "build": "npm run build --workspace shared && npm run build --workspace contracts && npm --prefix client run build",
+    "demo": "npm run demo --workspace shared",
+    "demo:season": "npm run demo:season --workspace contracts",
+    "setup:client": "npm --prefix client install",
+    "dev:server": "npm run dev --workspace server",
+    "dev:client": "npm --prefix client run dev",
+    "deploy:fuji": "npm run deploy:fuji --workspace contracts",
+    "deploy:local": "npm run deploy:local --workspace contracts"
+  }
+}
