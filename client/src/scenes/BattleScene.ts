@@ -70,7 +70,6 @@ export class BattleScene extends Phaser.Scene {
   private turnPill!: Phaser.GameObjects.Graphics;
   private turnPillText!: Phaser.GameObjects.Text;
   private turnPulse: Phaser.Tweens.Tween | null = null;
-  private legendShown = false;
   private animating = false;
   private pendingTarget: string | null = null;
   private pendingSkill: string | null = null;
@@ -315,6 +314,17 @@ export class BattleScene extends Phaser.Scene {
     if (this.animating || this.disposed) return;
     this.animating = true;
     this.busy = true;
+
+    // Không đếm giờ trong lúc animation chạy (server đã cộng bù thời gian này).
+    this.timer.freeze();
+
+    const enemyActing = anim.side !== view.you;
+    this.renderTurnPill(!enemyActing, false);
+    if (enemyActing) {
+      showTurnNotice(this, 374, 'ĐỐI THỦ ĐANG ĐÁNH', COLORS.enemy);
+      await this.delay(650);
+      if (this.disposed) return;
+    }
 
     try {
       await this.animateSwapPair(anim.from, anim.to, anim.swapBoard);
@@ -622,60 +632,6 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  /** Giải thích 4 loại ngọc — hiện 1 lần ở đầu trận. */
-  private showGemLegend(): void {
-    const rows: Array<[string, string, number]> = [
-      ['⚔️', 'ATK — gây sát thương lên mục tiêu', COLORS.atk],
-      ['🩸', 'HP — hồi máu toàn đội', COLORS.hp],
-      ['💧', 'MANA — nạp mana để dùng chiêu', COLORS.mana],
-      ['🛡️', 'SHIELD — tạo giáp chặn sát thương', COLORS.shield],
-    ];
-
-    const container = this.add.container(0, 0).setDepth(95).setAlpha(0);
-    const dim = this.add.rectangle(195, 422, 390, 844, 0x03050a, 0.55).setInteractive();
-    const bg = this.add.graphics();
-    paintPanel(bg, 34, 292, 322, 190, {
-      fill: COLORS.panel,
-      fillAlpha: 0.98,
-      border: COLORS.accent,
-      borderAlpha: 0.5,
-      radius: 16,
-    });
-    const title = label(this, 195, 306, 'NGỌC TRÊN BÀN', 10, COLORS.accent, 'bold')
-      .setOrigin(0.5, 0)
-      .setLetterSpacing(1.2);
-
-    container.add([dim, bg, title]);
-
-    rows.forEach(([icon, text, color], index) => {
-      const y = 334 + index * 32;
-      const bar = this.add.graphics();
-      bar.fillStyle(color, 0.9);
-      bar.fillRoundedRect(46, y + 4, 3, 14, 2);
-
-      const iconText = label(this, 62, y, icon, 13).setOrigin(0.5, 0);
-      const row = label(this, 84, y + 2, text, 9, COLORS.text);
-      container.add([bar, iconText, row]);
-    });
-
-    const hint = label(this, 195, 456, 'chạm để đóng · tự đóng sau 6s', 8, COLORS.dim).setOrigin(0.5, 0);
-    container.add(hint);
-
-    this.tweens.add({ targets: container, alpha: 1, duration: 180 });
-
-    const close = () => {
-      if (!container.active) return;
-      this.tweens.add({
-        targets: container,
-        alpha: 0,
-        duration: 180,
-        onComplete: () => container.destroy(true),
-      });
-    };
-    dim.on('pointerup', close);
-    this.time.delayedCall(6_000, close);
-  }
-
   private bombFlash(cells: number[]): void {
     for (const cell of cells) {
       const ring = this.add
@@ -813,11 +769,6 @@ export class BattleScene extends Phaser.Scene {
     this.renderTurnFrame(yourTurn, battle.suddenDeath);
     this.renderTurnPill(yourTurn, battle.suddenDeath);
     this.skillLayer.setAlpha(yourTurn ? 1 : 0.55);
-
-    if (!this.legendShown) {
-      this.legendShown = true;
-      this.showGemLegend();
-    }
 
     if (turnChanged) {
       showTurnNotice(

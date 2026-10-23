@@ -191,3 +191,4 @@ client/src/
 5. `client/` Phaser 3: Lobby/Draft/Battle, wallet, season panel, E2E bot match.
 6. Sửa 3 bug UI lớn: hit area lệch, text vỡ do pixelArt, thiếu khoá gửi trùng draft.
 7. Thêm animation cascade đầy đủ + sửa link sai bằng `swapBoard` + chỉ báo lượt (thông báo fade/xám màu).
+8. Đồng bộ timer với animation: server cộng bù deadline + lùi bot, client đóng băng đồng hồ và hiện splash "ĐỐI THỦ ĐANG ĐÁNH". Bỏ bảng hướng dẫn ngọc đầu trận.

@@ -10,6 +10,7 @@ export class Countdown extends Phaser.GameObjects.Container {
   private totalMs = 1;
   private lastShown = -1;
   private lastColor = -1;
+  private frozen = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, radius = 21) {
     const ring = scene.add.graphics();
@@ -29,7 +30,18 @@ export class Countdown extends Phaser.GameObjects.Container {
     this.deadline = deadline;
     this.totalMs = Math.max(1, totalMs);
     this.lastShown = -1;
+    this.frozen = false;
     this.redraw(1);
+    return this;
+  }
+
+  /** Dừng hiển thị trong lúc animation chạy — tránh đếm ngược sai lượt. */
+  freeze(): this {
+    this.frozen = true;
+    this.deadline = null;
+    this.lastShown = -1;
+    this.caption.setText('…');
+    this.redraw(0);
     return this;
   }
 
@@ -39,10 +51,11 @@ export class Countdown extends Phaser.GameObjects.Container {
   }
 
   override update(): void {
-    if (this.deadline === null) return;
+    if (this.frozen || this.deadline === null) return;
     const seconds = Math.max(0, (this.deadline - Date.now()) / 1000);
     const ratio = Phaser.Math.Clamp(seconds / (this.totalMs / 1000), 0, 1);
-    const shown = Math.ceil(seconds);
+    // Server cộng thêm buffer animation vào deadline → không hiển thị quá tổng lượt.
+    const shown = Math.min(Math.ceil(this.totalMs / 1000), Math.ceil(seconds));
     if (shown !== this.lastShown) {
       this.lastShown = shown;
       this.caption.setText(`${shown}s`);

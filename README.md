@@ -762,6 +762,8 @@ MatchRoom (1 trận)
 
 **Timeout tự động** (chống AFK): hết giờ pick/ban → random hợp lệ; hết giờ lượt → bot chọn nước đi tốt nhất. **Disconnect**: giữ 20s, quá hạn xử thua.
 
+**Đồng bộ timer với animation:** server cộng bù `min(9s, 0.9s + 0.85s × số wave)` vào deadline của lượt kế và lùi thời điểm bot ra quyết định. Nhờ vậy client phát animation xong mới bắt đầu đếm giờ, và **có khoảng nghỉ thấy rõ giữa lượt bạn và lượt địch** (pill đổi màu + splash "ĐỐI THỦ ĐANG ĐÁNH"). Client cũng **đóng băng đồng hồ** trong lúc animation chạy.
+
 **HTTP API** (CORS mở — SeasonScene và tooling dùng):
 
 | Endpoint | Trả về |

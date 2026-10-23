@@ -54,6 +54,8 @@ function makeRoom(
     rng: mulberry32(options.rngSeed ?? 42),
     ranking: options.ranking,
     timings: { pickMs: 1000, banMs: 1000, turnMs: 1000, botDelayMs: 10, disconnectGraceMs: 5000 },
+    // Test điều khiển đồng hồ thủ công → không cộng bù animation.
+    animationBudget: () => 0,
   });
 }
 

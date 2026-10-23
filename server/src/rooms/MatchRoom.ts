@@ -50,6 +50,8 @@ export interface MatchRoomOptions {
   now?: () => number;
   rng?: Rng;
   timings?: Partial<Timings>;
+  /** Thời gian cộng bù để client kịp phát animation trước khi lượt kế bắt đầu. */
+  animationBudget?: (waves: number) => number;
   ranking?: RankingStore;
   chain?: ChainClient | null;
   onFinished?: (room: MatchRoom) => void;
@@ -78,6 +80,7 @@ export class MatchRoom {
   private readonly onFinished?: (room: MatchRoom) => void;
   private readonly botSide: Side | null;
   private readonly matchSalt: string;
+  private readonly animationBudget: (waves: number) => number;
 
   private draft: DraftState;
   private battle: BattleState | null = null;
@@ -103,6 +106,8 @@ export class MatchRoom {
     this.onFinished = options.onFinished;
     this.botSide = players.find((p) => p.isBot)?.side ?? null;
     this.matchSalt = Math.random().toString(16).slice(2).padEnd(16, '0');
+    // Client cần ~0.9s khung + ~0.85s mỗi wave; cộng bù để timer không bị trừ oan.
+    this.animationBudget = options.animationBudget ?? ((waves) => Math.min(9000, 900 + waves * 850));
 
     const firstPick: Side = this.rng() < 0.5 ? 'P1' : 'P2';
     this.draft = createDraft(firstPick);
@@ -326,8 +331,6 @@ export class MatchRoom {
     );
 
     this.pending = { skill: null, targetUid: null };
-    this.deadline = this.now() + this.timings.turnMs;
-    this.scheduleBot();
 
     // Sudden Death có thể kết thúc trận ngay trong lượt này (accepted = true, không có swap).
     if (this.battle.winner !== null) {
@@ -338,6 +341,11 @@ export class MatchRoom {
       this.sendError(side, 'ILLEGAL_MOVE', `Nước đi không hợp lệ (${report.reason ?? 'UNKNOWN'})`);
       return;
     }
+
+    // Cộng bù thời gian animation để timer của lượt kế không bị chạy trước.
+    const budget = this.animationBudget(report.animation?.waves.length ?? 0);
+    this.deadline = this.now() + this.timings.turnMs + budget;
+    this.scheduleBot(budget);
     this.broadcast(report.logs, report.animation ?? undefined);
   }
 
@@ -353,8 +361,9 @@ export class MatchRoom {
       this.timeoutBattle();
       return;
     }
-    this.deadline = this.now() + this.timings.turnMs;
-    this.scheduleBot();
+    const budget = this.animationBudget(report.animation?.waves.length ?? 0);
+    this.deadline = this.now() + this.timings.turnMs + budget;
+    this.scheduleBot(budget);
     if (this.battle.winner !== null) {
       this.finish(this.battle.winner, report.logs.join(' · '));
       return;
@@ -375,8 +384,9 @@ export class MatchRoom {
       this.finish('draw', 'Không thể resolve lượt — hoà');
       return;
     }
-    this.deadline = this.now() + this.timings.turnMs;
-    this.scheduleBot();
+    const budget = this.animationBudget(report.animation?.waves.length ?? 0);
+    this.deadline = this.now() + this.timings.turnMs + budget;
+    this.scheduleBot(budget);
     if (this.battle.winner !== null) {
       this.finish(this.battle.winner, report.logs.join(' · '));
       return;
@@ -497,8 +507,8 @@ export class MatchRoom {
 
   // ── Helpers ──────────────────────────────────────────────────────────
 
-  private scheduleBot(): void {
-    this.botActAt = this.now() + this.timings.botDelayMs;
+  private scheduleBot(extraMs = 0): void {
+    this.botActAt = this.now() + extraMs + this.timings.botDelayMs;
   }
 
   private broadcast(events: string[] = [], animation?: TurnAnimation): void {
