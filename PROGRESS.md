@@ -202,3 +202,4 @@ client/src/
 11. Sửa lỗi tràn chữ và đè chữ trong card tướng Draft (`DraftHeroCard`):
     - Đặt vị trí Y của nội tại nối tiếp ngay sau chiêu thức (`top + 65 + descText.height + 4`), loại bỏ hoàn toàn `Math.max` neo đáy khiến dòng thứ 2 của Debuffer chạm viền dưới.
     - Mở rộng kích thước thẻ lên 304×130px với lề chữ 12px (bề rộng hiển thị 280px), tăng khoảng đệm đáy an toàn lên 18-20px cho mọi archetype.
+12. Bỏ thông báo toast chữ màu vàng "Đang chọn <tướng>…" khi người chơi vừa xác nhận chọn xong; giữ nguyên banner thông báo lượt (turn notice) cho cả hai bên.

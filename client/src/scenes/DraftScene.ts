@@ -535,7 +535,6 @@ export class DraftScene extends Phaser.Scene {
 
         this.pending = kind;
         this.closeModal();
-        this.showToast(kind === 'pick' ? `Đang chọn ${archetype}…` : `Đang ban ${archetype}…`, COLORS.gold);
         this.time.delayedCall(3_000, () => {
           this.pending = null;
         });
