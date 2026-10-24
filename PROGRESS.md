@@ -25,7 +25,7 @@ Chạy `npm test` → 117 test. `npm run typecheck` + `npm run build` → sạch
 
 ```powershell
 # Node portable (máy này không cài Node toàn cục)
-$env:PATH="C:\Users\Administrator\AppData\Local\Temp\opencode\node\node-v22.20.0-win-x64;$env:PATH"
+$env:PATH="C:\Program Files\nodejs;C:\Program Files\Git\cmd;$env:PATH"
 
 npm install
 npm run setup:client        # client là package standalone, cài riêng
@@ -116,7 +116,8 @@ client/src/
 
 ### P1 — chất lượng / demo mượt
 
-- [ ] **Quyết định layout PC** (user yêu cầu "PC viewport", hiện đang **park**): cần chọn landscape 1280×800 (board giữa, 2 đội 2 bên) hay giữ dọc phóng to. Đây là refactor 3 scene, **không phải chỉnh CSS**.
+- [x] **Layout PC Viewport (1280×720)**: Đã refactor toàn bộ client sang landscape 16:9 PC widescreen (Lobby 3 cột, Draft 3 cột + roster 2x4, Battle: board ở giữa, Đội bạn bên trái, Đội địch & nhật ký bên phải).
+- [x] **Cải thiện độ nét chữ viết**: Bật `roundPixels: true`, dùng `devicePixelRatio`, font padding, và nâng thang kích thước chữ lên chuẩn PC (12-16px, tiêu đề 20-36px), triệt tiêu hoàn toàn mờ nhòe.
 - [ ] **Âm thanh**: swap, match, bomb, combo, thắng/thua (hiện không có tiếng).
 - [ ] **Reconnect có token** (hiện mất mạng >20s là thua; D-15).
 - [ ] **Rematch** ở màn kết quả.
@@ -192,3 +193,12 @@ client/src/
 6. Sửa 3 bug UI lớn: hit area lệch, text vỡ do pixelArt, thiếu khoá gửi trùng draft.
 7. Thêm animation cascade đầy đủ + sửa link sai bằng `swapBoard` + chỉ báo lượt (thông báo fade/xám màu).
 8. Đồng bộ timer với animation: server cộng bù deadline + lùi bot, client đóng băng đồng hồ và hiện splash "ĐỐI THỦ ĐANG ĐÁNH". Bỏ bảng hướng dẫn ngọc đầu trận.
+9. Nâng cấp toàn diện giao diện sang PC Widescreen 16:9 (1280×720):
+   - Chuyển `LobbyScene`, `DraftScene`, `BattleScene` sang layout 3 cột tối ưu cho desktop.
+   - Sửa mờ chữ trong Phaser: bật `roundPixels: true`, dùng typography scaling và `setResolution(Math.max(devicePixelRatio, 2))`.
+   - Sửa lỗi lệch ô nhập tên người chơi (`#pp-name`) và căn chỉnh top header: bọc DOM input trong wrapper cố định 388×46px, căn giữa $X = 640$, đếm ngược mùa ở trung tâm và trạng thái kết nối gọn gàng góc phải.
+   - Toàn bộ 117 tests passing, build client Vite và Hardhat thành công 100%.
+10. Sửa lỗi reload trang không tự động kết nối: thêm lại `gameClient.connect()` khi khởi chạy client trong `main.ts` và bổ sung listener `window.addEventListener('online', ...)` tự động phục hồi kết nối.
+11. Sửa lỗi tràn chữ và đè chữ trong card tướng Draft (`DraftHeroCard`):
+    - Đặt vị trí Y của nội tại nối tiếp ngay sau chiêu thức (`top + 65 + descText.height + 4`), loại bỏ hoàn toàn `Math.max` neo đáy khiến dòng thứ 2 của Debuffer chạm viền dưới.
+    - Mở rộng kích thước thẻ lên 304×130px với lề chữ 12px (bề rộng hiển thị 280px), tăng khoảng đệm đáy an toàn lên 18-20px cho mọi archetype.

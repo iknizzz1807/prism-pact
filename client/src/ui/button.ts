@@ -39,12 +39,13 @@ export class Button extends Phaser.GameObjects.Container {
     text: string,
     variant: ButtonVariant,
     onActivate: () => void,
-    fontSize = 13,
+    fontSize = 15,
   ) {
     const bg = scene.add.graphics();
+    const res = typeof window !== 'undefined' ? Math.max(window.devicePixelRatio || 1, 2) : 2;
     const caption = scene.add
       .text(0, 0, text, textStyle(fontSize, PALETTES[variant].text, 'bold'))
-      .setResolution(3)
+      .setResolution(res)
       .setOrigin(0.5);
 
     super(scene, x, y, [bg, caption]);
@@ -76,7 +77,7 @@ export class Button extends Phaser.GameObjects.Container {
         },
         onDown: () => {
           if (!this.enabled) return;
-          scene.tweens.add({ targets: this, scale: 0.955, duration: 60, ease: 'Quad.out' });
+          scene.tweens.add({ targets: this, scale: 0.96, duration: 60, ease: 'Quad.out' });
         },
         onUp: () => {
           scene.tweens.add({ targets: this, scale: this.hovered ? 1.02 : 1, duration: 90, ease: 'Back.out' });
@@ -104,28 +105,35 @@ export class Button extends Phaser.GameObjects.Container {
 
   setVariant(variant: ButtonVariant): this {
     this.variant = variant;
+    this.caption.setColor(hex(PALETTES[variant].text));
     this.redraw();
     return this;
   }
 
   private redraw(): void {
     const palette = PALETTES[this.variant];
-    const g = this.bg;
     const left = -this.boxW / 2;
     const top = -this.boxH / 2;
+    const g = this.bg;
     g.clear();
 
-    g.fillStyle(COLORS.black, 0.35);
-    g.fillRoundedRect(left + 1, top + 2, this.boxW, this.boxH, 11);
+    if (this.enabled && this.hovered) {
+      g.lineStyle(6, palette.border, 0.18);
+      g.strokeRoundedRect(left - 2, top - 2, this.boxW + 4, this.boxH + 4, 13);
+    }
 
-    g.fillStyle(this.hovered && this.enabled ? palette.fillHover : palette.fill, 1);
-    g.fillRoundedRect(left, top, this.boxW, this.boxH, 11);
-    g.lineStyle(1, palette.border, this.enabled ? 0.85 : 0.4);
-    g.strokeRoundedRect(left, top, this.boxW, this.boxH, 11);
+    g.fillStyle(this.hovered ? palette.fillHover : palette.fill, 0.95);
+    g.fillRoundedRect(left, top, this.boxW, this.boxH, 12);
+    g.lineStyle(1.5, palette.border, this.hovered ? 1 : 0.7);
+    g.strokeRoundedRect(left, top, this.boxW, this.boxH, 12);
 
-    g.fillStyle(COLORS.white, 0.07);
-    g.fillRoundedRect(left + 1, top + 1, this.boxW - 2, this.boxH / 2.2, { tl: 10, tr: 10, bl: 0, br: 0 });
-
-    this.caption.setColor(hex(palette.text));
+    // Vệt sáng viền trên
+    g.fillStyle(COLORS.white, this.hovered ? 0.08 : 0.04);
+    g.fillRoundedRect(left + 2, top + 2, this.boxW - 4, Math.max(12, this.boxH * 0.35), {
+      tl: 10,
+      tr: 10,
+      bl: 0,
+      br: 0,
+    });
   }
 }

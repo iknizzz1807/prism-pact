@@ -34,7 +34,7 @@ export interface DraftCardOptions {
   onClick?: (archetype: Archetype) => void;
 }
 
-/** Card tướng trong draft: tên, HP/ATK/DEF, tên chiêu. Tap mở chi tiết. */
+/** Card tướng trong draft trên PC: tên, emoji, chỉ số, chiêu thức & nội tại sắc nét. */
 export class DraftHeroCard extends Phaser.GameObjects.Container {
   readonly archetype: Archetype;
   private readonly bg: Phaser.GameObjects.Graphics;
@@ -52,39 +52,54 @@ export class DraftHeroCard extends Phaser.GameObjects.Container {
     const left = -options.width / 2;
     const top = -options.height / 2;
 
-    const nameText = label(scene, left + 13, top + 9, def.archetype, 14, COLORS.text, 'bold');
+    const emoji = ARCHETYPE_EMOJI[def.archetype];
+    const nameText = label(scene, left + 12, top + 9, `${emoji} ${def.archetype}`, 15, COLORS.text, 'bold');
+    const noteText = label(scene, left + options.width - 12, top + 10, '', 11, COLORS.muted, 'bold').setOrigin(1, 0);
+
     const statText = label(
       scene,
-      left + 13,
-      top + 28,
+      left + 12,
+      top + 29,
       `HP ${def.hp}  ·  ATK ${def.atk}  ·  DEF ${def.def}`,
-      9,
+      11,
       COLORS.muted,
+      'bold',
     );
     const skillText = label(
       scene,
-      left + 13,
-      options.height >= 90 ? top + 48 : top + options.height - 22,
-      `${def.skill.name} · ${def.skill.mana} mana`,
-      9,
+      left + 12,
+      top + 47,
+      `Chiêu: ${def.skill.name} (${def.skill.mana} mana · CD ${def.skill.cd})`,
+      12,
       accent,
+      'bold',
     );
-    const noteText = label(scene, left + options.width - 11, top + 11, '', 9, COLORS.muted, 'bold').setOrigin(1, 0);
 
     const extras: Phaser.GameObjects.GameObject[] = [];
-    if (options.height >= 90) {
-      extras.push(
-        scene.add
-          .text(left + 13, top + 64, def.skill.desc, {
-            fontFamily: '"Segoe UI", "Trebuchet MS", system-ui, sans-serif',
-            fontSize: '8.5px',
-            color: '#8fa0bb',
-            lineSpacing: 2,
-            wordWrap: { width: options.width - 26, useAdvancedWrap: true },
-          })
-          .setResolution(3),
-        label(scene, left + 13, top + options.height - 17, `Nội tại: ${def.passive.name}`, 8, COLORS.violet, 'bold'),
-      );
+    if (options.height >= 110) {
+      const descText = scene.add
+        .text(left + 12, top + 65, def.skill.desc, {
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          fontSize: '11px',
+          color: '#94a3b8',
+          lineSpacing: 1.5,
+          wordWrap: { width: options.width - 24, useAdvancedWrap: true },
+        })
+        .setResolution(Math.max(window.devicePixelRatio || 1, 2));
+
+      // Đặt passive ngay dưới descText, đảm bảo có ít nhất 18-20px đệm tới đáy thẻ, không bao giờ chạm viền
+      const passiveY = top + 65 + descText.height + 4;
+      const passiveText = scene.add
+        .text(left + 12, passiveY, `Nội tại: ${def.passive.name} — ${def.passive.desc}`, {
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          fontSize: '11px',
+          color: '#a78bfa',
+          lineSpacing: 1.5,
+          wordWrap: { width: options.width - 24, useAdvancedWrap: true },
+        })
+        .setResolution(Math.max(window.devicePixelRatio || 1, 2));
+
+      extras.push(descText, passiveText);
     }
 
     super(scene, x, y, [bg, nameText, statText, skillText, noteText, ...extras]);
@@ -142,48 +157,66 @@ export class DraftHeroCard extends Phaser.GameObjects.Container {
     const g = this.bg;
     g.clear();
 
-    const glow = this.cardState === 'mine' ? COLORS.accent : this.highlighted ? COLORS.accent : this.cardState === 'enemy' ? COLORS.enemy : undefined;
+    const glow =
+      this.cardState === 'mine'
+        ? COLORS.accent
+        : this.highlighted
+          ? COLORS.accent
+          : this.cardState === 'enemy'
+            ? COLORS.enemy
+            : undefined;
+
     if (glow !== undefined) {
-      g.lineStyle(5, glow, this.highlighted ? 0.07 : 0.16);
-      g.strokeRoundedRect(left - 1, top - 1, this.boxW + 2, this.boxH + 2, 13);
+      g.lineStyle(6, glow, this.highlighted ? 0.12 : 0.22);
+      g.strokeRoundedRect(left - 2, top - 2, this.boxW + 4, this.boxH + 4, 14);
     }
 
-    g.fillStyle(COLORS.black, 0.3);
-    g.fillRoundedRect(left + 1, top + 2, this.boxW, this.boxH, 12);
+    g.fillStyle(COLORS.black, 0.35);
+    g.fillRoundedRect(left + 2, top + 2, this.boxW, this.boxH, 12);
 
-    g.fillStyle(this.hovered ? COLORS.panelHi : COLORS.panelAlt, locked ? 0.7 : 0.96);
+    g.fillStyle(this.hovered ? COLORS.panelHi : COLORS.panelAlt, locked ? 0.72 : 0.96);
     g.fillRoundedRect(left, top, this.boxW, this.boxH, 12);
+
     const borderColor =
       this.cardState === 'mine' || this.highlighted
         ? COLORS.accent
         : this.cardState === 'enemy'
           ? COLORS.enemy
           : COLORS.border;
-    const borderAlpha = this.cardState === 'mine' ? 0.95 : this.highlighted ? 0.45 : locked ? 0.5 : 0.9;
-    g.lineStyle(1, borderColor, borderAlpha);
+    const borderAlpha = this.cardState === 'mine' ? 0.95 : this.highlighted ? 0.6 : locked ? 0.45 : 0.85;
+    g.lineStyle(1.5, borderColor, borderAlpha);
     g.strokeRoundedRect(left, top, this.boxW, this.boxH, 12);
 
+    // Accent line bên trái
     g.fillStyle(accent, locked ? 0.4 : 1);
-    g.fillRoundedRect(left + 4, top + 9, 3, this.boxH - 18, 2);
+    g.fillRoundedRect(left + 4, top + 8, 4, this.boxH - 16, 2);
 
-    // Vệt sáng trên cùng.
-    g.fillStyle(COLORS.white, 0.03);
-    g.fillRoundedRect(left + 1, top + 1, this.boxW - 2, 16, { tl: 11, tr: 11, bl: 0, br: 0 });
+    // Vệt sáng trên cùng
+    g.fillStyle(COLORS.white, 0.04);
+    g.fillRoundedRect(left + 1, top + 1, this.boxW - 2, 18, { tl: 11, tr: 11, bl: 0, br: 0 });
 
     if (locked) {
-      g.fillStyle(COLORS.bgDeep, 0.42);
+      g.fillStyle(COLORS.bgDeep, 0.45);
       g.fillRoundedRect(left, top, this.boxW, this.boxH, 12);
     }
 
-    this.setAlpha(locked ? 0.72 : 1);
+    this.setAlpha(locked ? 0.75 : 1);
     this.nameText.setColor(hex(locked ? COLORS.muted : COLORS.text));
     this.noteText.setColor(
-      hex(this.cardState === 'mine' ? COLORS.accent : this.cardState === 'enemy' ? COLORS.enemy : this.cardState === 'banned' ? COLORS.danger : COLORS.dim),
+      hex(
+        this.cardState === 'mine'
+          ? COLORS.accent
+          : this.cardState === 'enemy'
+            ? COLORS.enemy
+            : this.cardState === 'banned'
+              ? COLORS.danger
+              : COLORS.dim,
+      ),
     );
   }
 }
 
-/** Ô tướng nhỏ trong hàng pick của 2 bên. */
+/** Ô tướng trong hàng pick của 2 bên. */
 export class MiniHeroSlot extends Phaser.GameObjects.Container {
   constructor(
     scene: Phaser.Scene,
@@ -198,22 +231,23 @@ export class MiniHeroSlot extends Phaser.GameObjects.Container {
     const left = -width / 2;
     const top = -height / 2;
 
-    g.fillStyle(COLORS.bgDeep, archetype ? 0.5 : 0.35);
+    g.fillStyle(COLORS.bgDeep, archetype ? 0.75 : 0.4);
     g.fillRoundedRect(left, top, width, height, 10);
-    g.lineStyle(1, archetype ? accentColor : COLORS.border, archetype ? 0.65 : 0.6);
+    g.lineStyle(1.5, archetype ? accentColor : COLORS.border, archetype ? 0.8 : 0.5);
     g.strokeRoundedRect(left, top, width, height, 10);
 
     const parts: Phaser.GameObjects.GameObject[] = [g];
 
     if (archetype) {
       const color = ARCHETYPE_COLOR[archetype];
+      const emoji = ARCHETYPE_EMOJI[archetype];
       g.fillStyle(color, 0.95);
-      g.fillRoundedRect(left, top + 8, 3, height - 16, 2);
-      const name = label(scene, left + 10, top + 7, archetype, 10, COLORS.text, 'bold');
-      const role = label(scene, left + 10, top + height - 17, 'ĐÃ CHỌN', 7, color, 'bold').setLetterSpacing(0.8);
+      g.fillRoundedRect(left, top + 6, 4, height - 12, 2);
+      const name = label(scene, left + 14, top + 9, `${emoji} ${archetype}`, 14, COLORS.text, 'bold');
+      const role = label(scene, left + 14, top + height - 20, 'ĐÃ CHỌN', 11, color, 'bold').setLetterSpacing(0.8);
       parts.push(name, role);
     } else {
-      const empty = label(scene, 0, 0, '?', 16, COLORS.dim, 'bold').setOrigin(0.5);
+      const empty = label(scene, 0, 0, '— CHỜ CHỌN —', 13, COLORS.dim, 'bold').setOrigin(0.5);
       parts.push(empty);
     }
 
@@ -233,15 +267,16 @@ export interface BattleCardOptions {
   height: number;
   variant: 'enemy' | 'ally';
   onClick?: (uid: string) => void;
+  onSkillClick?: (uid: string) => void;
 }
 
-/** Card tướng trong trận: HP + giáp, hồi chiêu, buff, trạng thái chết. */
+/** Card tướng trong trận trên PC: HP bar lớn + giáp, skill, trạng thái mục tiêu rõ ràng. */
 export class BattleHeroCard extends Phaser.GameObjects.Container {
   readonly uid: string;
   readonly archetype: Archetype;
   private readonly boxW: number;
   private readonly boxH: number;
-  private readonly variant: 'enemy' | 'ally';
+  readonly variant: 'enemy' | 'ally';
   private readonly hpBar: StatBar;
   private readonly hpText: Phaser.GameObjects.Text;
   private readonly shieldText: Phaser.GameObjects.Text;
@@ -260,34 +295,53 @@ export class BattleHeroCard extends Phaser.GameObjects.Container {
     const left = -options.width / 2;
     const top = -options.height / 2;
     const sideColor = options.variant === 'enemy' ? COLORS.enemy : COLORS.accent;
+    const emoji = ARCHETYPE_EMOJI[hero.archetype];
 
-    bg.fillStyle(COLORS.black, 0.28);
-    bg.fillRoundedRect(left + 1, top + 2, options.width, options.height, 12);
-    bg.fillStyle(COLORS.panelAlt, 0.95);
+    bg.fillStyle(COLORS.black, 0.35);
+    bg.fillRoundedRect(left + 2, top + 2, options.width, options.height, 12);
+    bg.fillStyle(COLORS.panelAlt, 0.96);
     bg.fillRoundedRect(left, top, options.width, options.height, 12);
-    bg.lineStyle(1, sideColor, 0.4);
+    bg.lineStyle(1.5, sideColor, 0.45);
     bg.strokeRoundedRect(left, top, options.width, options.height, 12);
-    bg.fillStyle(sideColor, 0.7);
-    bg.fillRoundedRect(left + 8, top + 2, options.width - 16, 2, 1);
 
-    const nameText = label(scene, 0, top + 14, hero.archetype, 13, COLORS.text, 'bold').setOrigin(0.5, 0);    const statText = label(
+    // Accent line viền trái
+    bg.fillStyle(ARCHETYPE_COLOR[hero.archetype], 0.9);
+    bg.fillRoundedRect(left + 3, top + 8, 4, options.height - 16, 2);
+
+    const nameText = label(scene, left + 16, top + 10, `${emoji} ${hero.archetype}`, 15, COLORS.text, 'bold');
+    const statText = label(
       scene,
-      0,
-      top + 32,
-      `ATK ${hero.atk} · DEF ${hero.def}`,
-      8,
+      left + options.width - 16,
+      top + 12,
+      `ATK ${hero.atk}  DEF ${hero.def}`,
+      13,
       COLORS.muted,
-    ).setOrigin(0.5, 0);
+      'bold',
+    ).setOrigin(1, 0);
 
-    const hpBar = new StatBar(scene, left + 8, top + 45, options.width - 16, 9, COLORS.hp);
-    const hpText = label(scene, left + 8, top + 57, '', 9, COLORS.text, 'bold');
-    const shieldText = label(scene, options.width / 2 - 8, top + 57, '', 9, COLORS.shield, 'bold').setOrigin(1, 0);
-    const skillText = label(scene, 0, top + 71, '', 9, COLORS.muted).setOrigin(0.5, 0);
-    const cdText = label(scene, 0, top + 84, '', 8, COLORS.accent, 'bold').setOrigin(0.5, 0);
-    const buffText = label(scene, 0, top + 97, '', 7, COLORS.violet, 'bold').setOrigin(0.5, 0);
-    const deadText = label(scene, 0, 0, '☠', 24, COLORS.danger, 'bold').setOrigin(0.5);
+    const hpBar = new StatBar(scene, left + 16, top + 36, options.width - 32, 12, COLORS.hp);
+    const hpText = label(scene, left + 18, top + 52, '', 13, COLORS.text, 'bold');
+    const shieldText = label(scene, left + options.width - 18, top + 52, '', 13, COLORS.shield, 'bold').setOrigin(1, 0);
 
-    super(scene, x, y, [bg, casterGlow, targetRing, nameText, statText, hpBar, hpText, shieldText, skillText, cdText, buffText, deadText]);
+    const skillText = label(scene, left + 16, top + 74, '', 13, COLORS.muted, 'bold');
+    const cdText = label(scene, left + options.width - 16, top + 74, '', 12, COLORS.accent, 'bold').setOrigin(1, 0);
+    const buffText = label(scene, left + 16, top + 94, '', 12, COLORS.violet, 'bold');
+    const deadText = label(scene, 0, 0, '☠ HẠ GỤC', 26, COLORS.danger, 'bold').setOrigin(0.5);
+
+    super(scene, x, y, [
+      bg,
+      casterGlow,
+      targetRing,
+      nameText,
+      statText,
+      hpBar,
+      hpText,
+      shieldText,
+      skillText,
+      cdText,
+      buffText,
+      deadText,
+    ]);
 
     this.uid = hero.uid;
     this.archetype = hero.archetype;
@@ -321,19 +375,27 @@ export class BattleHeroCard extends Phaser.GameObjects.Container {
     const shieldRatio = hero.maxHp > 0 ? hero.shield / hero.maxHp : 0;
     this.hpBar.setColor(ratio <= 0.3 ? COLORS.danger : ratio <= 0.6 ? COLORS.gold : COLORS.hp);
     this.hpBar.setRatios(ratio, shieldRatio);
-    this.hpText.setText(`${Math.max(0, Math.round(hero.hp))}/${hero.maxHp}`);
-    this.shieldText.setText(hero.shield > 0 ? `🛡 ${Math.round(hero.shield)}` : '');
-    this.skillText.setText(`${hero.skill.name} · ${hero.skill.mana}`);
+    this.hpText.setText(`HP ${Math.max(0, Math.round(hero.hp))}/${hero.maxHp}`);
+    this.shieldText.setText(hero.shield > 0 ? `🛡 Giáp +${Math.round(hero.shield)}` : '');
+    this.skillText.setText(`⚡ ${hero.skill.name} (${hero.skill.mana}💧)`);
     this.skillText.setColor(hex(hero.alive ? ARCHETYPE_COLOR[hero.archetype] : COLORS.dim));
 
     const ready = hero.alive && hero.cd === 0 && mana >= hero.skill.mana;
-    this.cdText.setText(hero.alive ? (hero.cd > 0 ? `CD ${hero.cd}` : ready ? 'SẴN SÀNG' : `THIẾU MANA`) : 'HẠ GỤC');
+    this.cdText.setText(
+      hero.alive
+        ? hero.cd > 0
+          ? `HỒI ${hero.cd} LƯỢT`
+          : ready
+            ? '✓ SẴN SÀNG'
+            : `CẦN ${hero.skill.mana} MANA`
+        : 'ĐÃ GỤC',
+    );
     this.cdText.setColor(hex(ready ? COLORS.accent : hero.cd > 0 ? COLORS.gold : COLORS.dim));
 
-    this.buffText.setText(hero.buffs.map((buff) => BUFF_LABEL[buff.kind]).join(' · '));
+    this.buffText.setText(hero.buffs.map((buff) => BUFF_LABEL[buff.kind]).join('  ·  '));
     this.nameText.setColor(hex(hero.alive ? COLORS.text : COLORS.dim));
     this.deadText.setVisible(!hero.alive);
-    this.setAlpha(hero.alive ? 1 : 0.62);
+    this.setAlpha(hero.alive ? 1 : 0.55);
   }
 
   setTargeted(targeted: boolean): void {
@@ -342,19 +404,22 @@ export class BattleHeroCard extends Phaser.GameObjects.Container {
     if (!targeted) return;
     const left = -this.boxW / 2;
     const top = -this.boxH / 2;
-    g.lineStyle(7, this.variant === 'enemy' ? COLORS.gold : COLORS.accent, 0.18);
-    g.strokeRoundedRect(left - 1, top - 1, this.boxW + 2, this.boxH + 2, 13);
-    g.lineStyle(2, this.variant === 'enemy' ? COLORS.gold : COLORS.accent, 1);
-    g.strokeRoundedRect(left - 1, top - 1, this.boxW + 2, this.boxH + 2, 13);
-    // 4 góc nhấn mạnh mục tiêu.
-    const len = 9;
+
+    // Glowing target ring
+    g.lineStyle(8, COLORS.gold, 0.22);
+    g.strokeRoundedRect(left - 2, top - 2, this.boxW + 4, this.boxH + 4, 14);
+    g.lineStyle(2.5, COLORS.gold, 1);
+    g.strokeRoundedRect(left - 2, top - 2, this.boxW + 4, this.boxH + 4, 14);
+
+    // 4 góc crosshair ngắm mục tiêu
+    const len = 14;
     const corners: Array<[number, number, number, number]> = [
       [left, top, 1, 1],
       [this.boxW / 2, top, -1, 1],
       [left, this.boxH / 2, 1, -1],
       [this.boxW / 2, this.boxH / 2, -1, -1],
     ];
-    g.lineStyle(2, COLORS.white, 0.85);
+    g.lineStyle(3, COLORS.white, 0.95);
     for (const [cx, cy, dx, dy] of corners) {
       g.lineBetween(cx, cy, cx + len * dx, cy);
       g.lineBetween(cx, cy, cx, cy + len * dy);
@@ -367,10 +432,10 @@ export class BattleHeroCard extends Phaser.GameObjects.Container {
     if (!on) return;
     const left = -this.boxW / 2;
     const top = -this.boxH / 2;
-    g.lineStyle(7, COLORS.violet, 0.2);
-    g.strokeRoundedRect(left - 2, top - 2, this.boxW + 4, this.boxH + 4, 14);
-    g.lineStyle(2, COLORS.violet, 0.95);
-    g.strokeRoundedRect(left - 2, top - 2, this.boxW + 4, this.boxH + 4, 14);
+    g.lineStyle(8, COLORS.violet, 0.25);
+    g.strokeRoundedRect(left - 3, top - 3, this.boxW + 6, this.boxH + 6, 15);
+    g.lineStyle(2.5, COLORS.violet, 1);
+    g.strokeRoundedRect(left - 3, top - 3, this.boxW + 6, this.boxH + 6, 15);
   }
 
   get widthValue(): number {

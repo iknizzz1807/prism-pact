@@ -10,24 +10,35 @@ export class BootScene extends Phaser.Scene {
 
   create(): void {
     drawBackdrop(this);
-    prismMark(this, 195, 360, 64);
+    prismMark(this, 640, 280, 80);
+
+    const res = typeof window !== 'undefined' ? Math.max(window.devicePixelRatio || 1, 2) : 2;
 
     this.add
-      .text(195, 420, 'PRISM PACT', textStyle(26, COLORS.text, 'bold'))
+      .text(640, 360, 'PRISM PACT', textStyle(38, COLORS.text, 'bold'))
       .setOrigin(0.5)
-      .setLetterSpacing(4)
-      .setResolution(3)
-      .setShadow(0, 0, '#5eead4', 12, true, true);
+      .setLetterSpacing(6)
+      .setResolution(res)
+      .setShadow(0, 0, '#2dd4bf', 18, true, true);
 
     this.add
-      .text(195, 452, 'ĐANG MỞ CỔNG ĐẤU TRƯỜNG…', textStyle(10, COLORS.muted, 'bold'))
+      .text(640, 410, 'MATCH-3 PVP · LIVE DRAFT · AVALANCHE C-CHAIN', textStyle(14, COLORS.muted, 'bold'))
       .setOrigin(0.5)
-      .setLetterSpacing(1.6)
-      .setResolution(3);
+      .setLetterSpacing(2)
+      .setResolution(res);
 
-    const dots = this.add.text(195, 486, '●  ●  ●', textStyle(8, COLORS.accent)).setOrigin(0.5).setResolution(3);
-    this.tweens.add({ targets: dots, alpha: { from: 0.25, to: 1 }, duration: 700, yoyo: true, repeat: -1 });
+    this.add
+      .text(640, 450, 'ĐANG KẾT NỐI ĐẤU TRƯỜNG…', textStyle(13, COLORS.dim, 'bold'))
+      .setOrigin(0.5)
+      .setLetterSpacing(1.5)
+      .setResolution(res);
 
-    this.time.delayedCall(420, () => this.scene.start('Lobby'));
+    const dots = this.add
+      .text(640, 490, '●   ●   ●', textStyle(10, COLORS.accent, 'bold'))
+      .setOrigin(0.5)
+      .setResolution(res);
+    this.tweens.add({ targets: dots, alpha: { from: 0.2, to: 1 }, duration: 600, yoyo: true, repeat: -1 });
+
+    this.time.delayedCall(450, () => this.scene.start('Lobby'));
   }
 }

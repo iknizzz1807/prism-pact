@@ -33,10 +33,9 @@ game = new Phaser.Game({
   parent: 'app',
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
-  backgroundColor: '#0b0f1a',
-  // UI toàn vector + text, không dùng sprite pixel → tắt pixelArt để chữ không bị răng cưa
+  backgroundColor: '#070a12',
   pixelArt: false,
-  roundPixels: false,
+  roundPixels: true,
   antialias: true,
   scale: {
     mode: Phaser.Scale.FIT,
@@ -93,6 +92,12 @@ retry?.addEventListener('click', () => {
 });
 
 gameClient.onStatus(scheduleBanner);
+
+// Tự động kết nối lại khi trình duyệt online trở lại
+window.addEventListener('online', () => {
+  if (gameClient.status !== 'open') gameClient.reconnectNow();
+});
+
 // ── Dev hook: cho phép E2E/debug từ console mà không ảnh hưởng production ─
 if (import.meta.env.DEV) {
   (window as unknown as { __prism?: unknown }).__prism = { game, gameClient, matchStore };

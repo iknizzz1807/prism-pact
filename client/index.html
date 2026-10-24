@@ -3,19 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b0f1a" />
-    <meta name="description" content="Prism Pact — match-3 PvP với draft trực tiếp trên Avalanche" />
-    <title>Prism Pact — Đấu trường Match-3</title>
+    <meta name="theme-color" content="#070a12" />
+    <meta name="description" content="Prism Pact — Match-3 PvP với draft trực tiếp trên Avalanche" />
+    <title>Prism Pact — Đấu Trường Match-3</title>
     <style>
       :root {
-        --bg: #05070d;
-        --frame: #0b0f1a;
-        --border: #27344d;
-        --text: #e8eefc;
-        --muted: #8fa0bb;
-        --accent: #5eead4;
+        --bg: #04060b;
+        --frame: #070a12;
+        --border: #243249;
+        --text: #f1f5f9;
+        --muted: #94a3b8;
+        --accent: #2dd4bf;
         --danger: #f87171;
-        font-family: "Segoe UI", "Trebuchet MS", system-ui, -apple-system, sans-serif;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
       }
 
       * { box-sizing: border-box; }
@@ -23,139 +23,136 @@
       html,
       body {
         margin: 0;
+        width: 100%;
         height: 100%;
         overflow: hidden;
-        background: radial-gradient(circle at 50% 0%, #111a2c 0%, var(--bg) 55%, #020308 100%);
+        background: radial-gradient(circle at 50% 20%, #101726 0%, var(--bg) 60%, #020306 100%);
         color: var(--text);
         -webkit-tap-highlight-color: transparent;
         -webkit-user-select: none;
         user-select: none;
         overscroll-behavior: none;
-        touch-action: none;
       }
 
       body {
-        display: flex;
-        align-items: center;
-        justify-content: center;
+        margin: 0;
         padding: 0;
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+        background: var(--bg);
       }
 
-      #phone {
+      #game-container {
         position: relative;
         width: 100vw;
-        height: 100dvh;
-        background: var(--frame);
+        height: 100vh;
         overflow: hidden;
-        isolation: isolate;
+        background: var(--bg);
       }
 
       #app {
         position: absolute;
         inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
         touch-action: none;
       }
 
       #app canvas {
         display: block;
-        touch-action: none;
+        box-shadow: 0 0 50px rgba(0, 0, 0, 0.85), 0 0 1px rgba(45, 212, 191, 0.2);
+        image-rendering: auto;
       }
 
-      /* Phaser injects the DOM container for the name input here. */
-      #app > div {
-        position: absolute;
-        inset: 0;
+      .pp-input-wrapper {
+        width: 388px;
+        height: 46px;
+        margin: 0;
+        padding: 0;
+        display: block;
       }
 
       .pp-input {
-        width: 306px;
-        height: 40px;
-        padding: 0 13px;
+        width: 388px;
+        height: 46px;
+        padding: 0 16px;
         border-radius: 12px;
-        border: 1px solid #2b3a55;
+        border: 1.5px solid #2b3a55;
         background: #0d1523;
         color: var(--text);
-        font: 600 15px/1 "Segoe UI", "Trebuchet MS", system-ui, sans-serif;
-        letter-spacing: 0.2px;
+        font: 600 15px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        letter-spacing: 0.3px;
         outline: none;
-        transition: border-color 120ms ease, box-shadow 120ms ease;
+        box-sizing: border-box;
+        transition: border-color 140ms ease, box-shadow 140ms ease;
         -webkit-appearance: none;
       }
 
-      .pp-input::placeholder { color: #5d6b83; font-weight: 500; }
+      .pp-input::placeholder { color: #64748b; font-weight: 500; }
 
       .pp-input:focus {
-        border-color: rgba(94, 234, 212, 0.85);
-        box-shadow: 0 0 0 3px rgba(94, 234, 212, 0.14);
+        border-color: rgba(45, 212, 191, 0.95);
+        box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.22);
       }
 
       #offline-banner {
         position: absolute;
-        top: 10px;
-        left: 10px;
-        right: 10px;
-        z-index: 30;
+        top: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 50;
         display: none;
         align-items: center;
-        gap: 10px;
-        padding: 9px 11px;
-        border: 1px solid rgba(248, 113, 113, 0.5);
+        gap: 12px;
+        padding: 10px 18px;
+        border: 1px solid rgba(248, 113, 113, 0.55);
         border-radius: 12px;
-        background: rgba(46, 16, 24, 0.94);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
-        backdrop-filter: blur(4px);
-        font-size: 12px;
-        line-height: 1.25;
+        background: rgba(38, 13, 19, 0.96);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(8px);
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.3;
       }
 
       #offline-banner.visible { display: flex; }
 
       #offline-banner .dot {
         flex: 0 0 auto;
-        width: 8px;
-        height: 8px;
+        width: 10px;
+        height: 10px;
         border-radius: 50%;
         background: var(--danger);
-        box-shadow: 0 0 8px var(--danger);
+        box-shadow: 0 0 10px var(--danger);
         animation: pp-pulse 1.2s ease-in-out infinite;
       }
 
-      #offline-banner span { flex: 1 1 auto; color: #ffd9d9; }
+      #offline-banner span { flex: 1 1 auto; color: #fecaca; }
 
       #offline-banner button {
         flex: 0 0 auto;
-        border: 1px solid rgba(248, 113, 113, 0.55);
+        border: 1px solid rgba(248, 113, 113, 0.6);
         border-radius: 8px;
-        background: rgba(248, 113, 113, 0.12);
-        color: #ffd9d9;
-        font: 700 11px/1 inherit;
-        padding: 7px 10px;
+        background: rgba(248, 113, 113, 0.16);
+        color: #fee2e2;
+        font: 700 12px/1 inherit;
+        padding: 7px 12px;
         cursor: pointer;
       }
 
+      #offline-banner button:hover { background: rgba(248, 113, 113, 0.28); }
       #offline-banner button:active { transform: scale(0.97); }
 
       @keyframes pp-pulse {
         0%, 100% { opacity: 1; }
         50% { opacity: 0.35; }
       }
-
-      @media (max-width: 520px) {
-        body { padding: 0; }
-        #phone {
-          height: 100dvh;
-          width: 100vw;
-          max-width: none;
-          aspect-ratio: auto;
-          border: 0;
-          border-radius: 0;
-          box-shadow: none;
-        }
-      }
     </style>
   </head>
   <body>
-    <div id="phone">
+    <div id="game-container">
       <div id="app"></div>
       <div id="offline-banner" role="status" aria-live="polite">
         <i class="dot"></i>

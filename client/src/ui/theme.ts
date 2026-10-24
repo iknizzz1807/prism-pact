@@ -1,21 +1,21 @@
 import Phaser from 'phaser';
 
-export const GAME_WIDTH = 390;
-export const GAME_HEIGHT = 844;
+export const GAME_WIDTH = 1280;
+export const GAME_HEIGHT = 720;
 
 export const COLORS = {
-  bg: 0x0b0f1a,
-  bgDeep: 0x070a12,
-  panel: 0x141c2c,
-  panelAlt: 0x101726,
-  panelHi: 0x1b2539,
-  border: 0x293650,
-  borderSoft: 0x1c2639,
-  text: 0xe8eefc,
-  muted: 0x8fa0bb,
-  dim: 0x5d6b83,
-  accent: 0x5eead4,
-  accentDeep: 0x14b8a6,
+  bg: 0x070a12,
+  bgDeep: 0x04060b,
+  panel: 0x111827,
+  panelAlt: 0x0e1422,
+  panelHi: 0x192235,
+  border: 0x243249,
+  borderSoft: 0x192334,
+  text: 0xf1f5f9,
+  muted: 0x94a3b8,
+  dim: 0x64748b,
+  accent: 0x2dd4bf,
+  accentDeep: 0x0f766e,
   violet: 0xa78bfa,
   gold: 0xfbbf24,
   danger: 0xf87171,
@@ -26,12 +26,12 @@ export const COLORS = {
   shield: 0xa78bfa,
   white: 0xffffff,
   black: 0x000000,
-  enemy: 0xff7a6b,
-  ally: 0x5eead4,
+  enemy: 0xf87171,
+  ally: 0x2dd4bf,
 } as const;
 
-export const FONT = '"Segoe UI", "Trebuchet MS", system-ui, sans-serif';
-export const MONO = 'Consolas, "Courier New", monospace';
+export const FONT = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+export const MONO = 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
 
 export const hex = (color: number): string => `#${color.toString(16).padStart(6, '0')}`;
 
@@ -56,9 +56,10 @@ export function textStyle(
 ): Phaser.Types.GameObjects.Text.TextStyle {
   return {
     fontFamily: FONT,
-    fontSize: `${size}px`,
+    fontSize: `${Math.round(size)}px`,
     fontStyle: weight,
     color: hex(color),
+    padding: { x: 4, y: 4 },
   };
 }
 
@@ -71,5 +72,8 @@ export function label(
   color: number = COLORS.text,
   weight: 'normal' | 'bold' = 'normal',
 ): Phaser.GameObjects.Text {
-  return scene.add.text(x, y, value, textStyle(size, color, weight)).setResolution(3);
+  const res = typeof window !== 'undefined' ? Math.max(window.devicePixelRatio || 1, 2) : 2;
+  const textObj = scene.add.text(Math.round(x), Math.round(y), value, textStyle(size, color, weight));
+  textObj.setResolution(res);
+  return textObj;
 }

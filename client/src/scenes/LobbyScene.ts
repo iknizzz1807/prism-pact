@@ -71,6 +71,7 @@ export class LobbyScene extends Phaser.Scene {
     this.walletLayer = this.add.container(0, 0);
     this.seasonLayer = this.add.container(0, 0);
     this.drawPlayPanel();
+    this.drawArchetypeHandbook();
     this.drawLogPanel();
     this.bindClient();
 
@@ -93,37 +94,42 @@ export class LobbyScene extends Phaser.Scene {
     if (this.season.seasonEnd === 0) {
       this.seasonCountdown.setText('CHƯA MỞ MÙA');
     } else if (remaining <= 0) {
-      this.seasonCountdown.setText('ĐÃ KẾT THÚC');
+      this.seasonCountdown.setText('MÙA 1 · ĐÃ KẾT THÚC');
     } else {
-      this.seasonCountdown.setText(`CÒN ${formatDuration(remaining).toUpperCase()}`);
+      this.seasonCountdown.setText(`MÙA 1 · CÒN ${formatDuration(remaining).toUpperCase()}`);
     }
   }
 
-  // ── Khung màn hình ────────────────────────────────────────────────────
+  // ── Khung màn hình PC ──────────────────────────────────────────────────
 
   private drawHeader(): void {
-    prismMark(this, 195, 40, 38);
+    // Top Bar Panel
+    panel(this, 24, 16, 1232, 64, { fillAlpha: 0.95 });
+
+    prismMark(this, 54, 48, 42);
 
     this.add
-      .text(195, 62, 'PRISM PACT', textStyle(28, COLORS.text, 'bold'))
-      .setOrigin(0.5, 0)
-      .setLetterSpacing(4)
-      .setResolution(3)
-      .setShadow(0, 0, '#5eead4', 14, true, true);
+      .text(90, 28, 'PRISM PACT', textStyle(24, COLORS.text, 'bold'))
+      .setOrigin(0, 0)
+      .setLetterSpacing(2.5)
+      .setResolution(Math.max(window.devicePixelRatio || 1, 2))
+      .setShadow(0, 0, '#2dd4bf', 14, true, true);
 
     this.add
-      .text(195, 97, 'MATCH-3 PVP · DRAFT TRỰC TIẾP · AVALANCHE', textStyle(8, COLORS.muted, 'bold'))
-      .setOrigin(0.5, 0)
-      .setLetterSpacing(1.1)
-      .setResolution(3);
+      .text(92, 55, 'MATCH-3 PVP TURN-BASED  ·  FUJI TESTNET', textStyle(11, COLORS.muted, 'bold'))
+      .setOrigin(0, 0)
+      .setLetterSpacing(1.2)
+      .setResolution(Math.max(window.devicePixelRatio || 1, 2));
 
+    this.seasonCountdown = label(this, 640, 48, 'MÙA 1 · ĐANG NẠP…', 12, COLORS.gold, 'bold').setOrigin(0.5, 0.5);
+
+    // Connection Pill
     this.connPill = this.add.graphics();
-    this.connDot = this.add.circle(0, 126, 3.5, COLORS.gold);
+    this.connDot = this.add.circle(1208, 48, 4.5, COLORS.gold);
     this.connText = this.add
-      .text(0, 126, '', textStyle(9, COLORS.muted, 'bold'))
+      .text(1218, 48, '', textStyle(12, COLORS.muted, 'bold'))
       .setOrigin(0, 0.5)
-      .setResolution(3)
-      .setLetterSpacing(0.6);
+      .setResolution(Math.max(window.devicePixelRatio || 1, 2));
 
     this.tweens.add({
       targets: this.connDot,
@@ -132,23 +138,34 @@ export class LobbyScene extends Phaser.Scene {
       yoyo: true,
       repeat: -1,
       paused: true,
-      onUpdate: () => undefined,
     });
   }
 
   private drawPanels(): void {
-    panel(this, 14, 154, 362, 152);
-    panel(this, 14, 318, 362, 178, { glow: COLORS.gold, glowAlpha: 0.08 });
-    panel(this, 14, 506, 362, 150);
-    panel(this, 14, 666, 362, 166);
+    // Left: DeFi & Season Vault (width 380px)
+    panel(this, 24, 92, 380, 608);
+
+    // Center: Sàn Đấu (width 436px)
+    panel(this, 422, 92, 436, 608, { glow: COLORS.accent, glowAlpha: 0.08 });
+
+    // Right: Cẩm Nang & Nhật Ký (width 380px)
+    panel(this, 876, 92, 380, 608);
   }
 
   private drawPlayPanel(): void {
-    sectionTitle(this, 30, 519, 'Sàn đấu');
+    sectionTitle(this, 446, 110, 'SÀN ĐẤU CHÍNH (PLAY ARENA)');
+    label(this, 836, 110, 'REALTIME', 11, COLORS.accent, 'bold').setOrigin(1, 0).setLetterSpacing(1.2);
 
-    const input = this.add.dom(195, 555).createFromHTML(
-      `<input id="pp-name" class="pp-input" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Tên hiển thị của bạn" />`,
+    label(this, 446, 138, 'TÊN NGƯỜI CHƠI TRÊN ĐẤU TRƯỜNG', 12, COLORS.dim, 'bold');
+
+    const input = this.add.dom(640, 185).createFromHTML(
+      `<div class="pp-input-wrapper"><input id="pp-name" class="pp-input" type="text" maxlength="24" autocomplete="off" spellcheck="false" placeholder="Nhập tên hiển thị của bạn..." /></div>`,
     );
+    if (input.node instanceof HTMLElement) {
+      input.node.style.width = '388px';
+      input.node.style.height = '46px';
+    }
+    input.updateSize();
     input.setOrigin(0.5, 0.5);
     const child = input.getChildByID('pp-name');
     if (child instanceof HTMLInputElement) {
@@ -162,7 +179,7 @@ export class LobbyScene extends Phaser.Scene {
         try {
           window.localStorage.setItem(NAME_KEY, child.value);
         } catch {
-          // localStorage có thể bị chặn — không ảnh hưởng chơi.
+          // localStorage có thể bị chặn
         }
       });
       child.addEventListener('keydown', (event: KeyboardEvent) => {
@@ -174,31 +191,95 @@ export class LobbyScene extends Phaser.Scene {
       });
     }
 
-    this.queueButton = new Button(this, 104, 601, 176, 40, 'TÌM TRẬN', 'primary', () => this.startQueue());
-    this.botButton = new Button(this, 286, 601, 172, 40, 'CHƠI VỚI BOT', 'secondary', () => this.playBot());
+    this.queueButton = new Button(this, 640, 244, 388, 48, 'TÌM TRẬN ĐỐI KHÁNG (PVP)', 'primary', () => this.startQueue());
+    this.botButton = new Button(this, 640, 302, 388, 48, 'LUYỆN TẬP VỚI BOT', 'secondary', () => this.playBot());
     this.add.existing(this.queueButton);
     this.add.existing(this.botButton);
 
-    this.playStatus = label(this, 30, 629, 'Sẵn sàng vào trận', 9, COLORS.muted);
+    this.playStatus = label(this, 446, 338, 'Sẵn sàng vào trận', 12, COLORS.muted, 'bold');
 
-    this.cancelText = label(this, 360, 628, 'Huỷ hàng đợi', 10, COLORS.danger, 'bold')
+    this.cancelText = label(this, 834, 338, 'Huỷ tìm trận [×]', 12, COLORS.danger, 'bold')
       .setOrigin(1, 0)
       .setVisible(false)
       .setInteractive({ useHandCursor: true })
       .on('pointerup', () => this.cancelQueue());
+
+    divider(this, 446, 366, 834);
+
+    // 3 Trụ cột cốt lõi
+    sectionTitle(this, 446, 382, '3 ĐẶC TRƯNG CỐT LÕI (UNIQUE MECHANICS)');
+
+    const pillars = [
+      {
+        icon: '⚔️',
+        title: 'Draft Đối Kháng Live',
+        desc: 'Ban/Pick 2-2 trực tiếp từ pool 8 archetype. Khắc chế đối thủ trước khi vào trận.',
+      },
+      {
+        icon: '🎯',
+        title: 'Cam Kết Mục Tiêu',
+        desc: 'Chọn tướng địch làm Target TRƯỚC KHI xếp ngọc. Đòn đánh thường dồn round-robin.',
+      },
+      {
+        icon: '💎',
+        title: 'No-Loss Prize Pool',
+        desc: 'Stake USDC không mất gốc, yield sinh từ Benqi tạo prize. Top 30% chia thưởng.',
+      },
+    ];
+
+    pillars.forEach((p, idx) => {
+      const py = 414 + idx * 86;
+      panel(this, 446, py, 388, 76, { fill: COLORS.bgDeep, fillAlpha: 0.8, radius: 10 });
+      label(this, 460, py + 12, p.icon, 20);
+      label(this, 492, py + 12, p.title, 14, COLORS.text, 'bold');
+      this.add
+        .text(492, py + 34, p.desc, {
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+          fontSize: '12px',
+          color: '#94a3b8',
+          lineSpacing: 2,
+          wordWrap: { width: 326 },
+        })
+        .setResolution(Math.max(window.devicePixelRatio || 1, 2));
+    });
+  }
+
+  private drawArchetypeHandbook(): void {
+    sectionTitle(this, 898, 110, 'CẨM NANG 8 TƯỚNG (ROSTER)');
+    label(this, 1234, 110, 'POOL 8', 11, COLORS.muted, 'bold').setOrigin(1, 0);
+
+    const roster = [
+      { name: 'Tank', emoji: '🛡️', role: 'Taunt hút đòn, +30% DEF khi thấp máu' },
+      { name: 'Burst', emoji: '💥', role: 'Nuke sát thương 3×, dồn one-shot' },
+      { name: 'Healer', emoji: '✚', role: 'Mass Heal 40% cả đội, tự hồi 5%/lượt' },
+      { name: 'Controller', emoji: '🌀', role: 'Weaken -50% ATK địch, hồi 10 mana' },
+      { name: 'Buffer', emoji: '📣', role: 'Rally +30% ATK & giáp cho cả đội' },
+      { name: 'Debuffer', emoji: '🧪', role: 'Strip -50% DEF địch, tăng dame team' },
+      { name: 'Assassin', emoji: '🗡️', role: 'Execute 2.5× ATK, bỏ qua 50% DEF' },
+      { name: 'Bruiser', emoji: '🪓', role: 'Lifesteal Strike 2× ATK, hồi máu' },
+    ];
+
+    roster.forEach((h, idx) => {
+      const hy = 138 + idx * 36;
+      label(this, 898, hy, `${h.emoji} ${h.name}`, 13, COLORS.text, 'bold');
+      const rText = label(this, 1018, hy, h.role, 12, COLORS.muted);
+      rText.setWordWrapWidth(216);
+    });
+
+    divider(this, 898, 436, 1234);
   }
 
   private drawLogPanel(): void {
-    sectionTitle(this, 30, 680, 'Nhật ký sự kiện');
-    label(this, 360, 680, 'LIVE', 8, COLORS.accent, 'bold').setOrigin(1, 0).setLetterSpacing(1.2);
+    sectionTitle(this, 898, 452, 'NHẬT KÝ SỰ KIỆN LIVE');
+    label(this, 1234, 452, 'FEED', 11, COLORS.accent, 'bold').setOrigin(1, 0).setLetterSpacing(1.2);
 
     this.logText = this.add
-      .text(30, 701, '', {
-        ...textStyle(10, COLORS.muted),
-        lineSpacing: 4,
-        wordWrap: { width: 330, useAdvancedWrap: true },
+      .text(898, 480, '', {
+        ...textStyle(12, COLORS.muted),
+        lineSpacing: 5,
+        wordWrap: { width: 336, useAdvancedWrap: true },
       })
-      .setResolution(3);
+      .setResolution(Math.max(window.devicePixelRatio || 1, 2));
   }
 
   // ── Client / store ────────────────────────────────────────────────────
@@ -247,7 +328,7 @@ export class LobbyScene extends Phaser.Scene {
         this.pushLog(`Ví đã kết nối: ${shortAddress(restored.address)}`);
       }
     } catch {
-      // Không có phiên cũ — người chơi sẽ bấm Kết nối ví.
+      // Không có phiên cũ
     }
 
     await this.refreshAll();
@@ -420,7 +501,11 @@ export class LobbyScene extends Phaser.Scene {
         this.depositStep = step;
         if (hash) this.depositTx = hash;
         this.walletNote =
-          step === 'approve' ? 'Đang approve USDC…' : step === 'deposit' ? 'Đang nạp vào SeasonVault…' : 'Đã nạp thành công.';
+          step === 'approve'
+            ? 'Đang approve USDC…'
+            : step === 'deposit'
+              ? 'Đang nạp vào SeasonVault…'
+              : 'Đã nạp thành công.';
         if (!this.disposed) this.renderWallet();
       });
       this.walletNote = `Đã nạp ${DEPOSIT_USDC} USDC — vốn không mất.`;
@@ -439,7 +524,11 @@ export class LobbyScene extends Phaser.Scene {
   private renderConnection(status: ConnectionStatus): void {
     this.connection = status;
     const color =
-      status === 'open' ? COLORS.success : status === 'connecting' || status === 'reconnecting' ? COLORS.gold : COLORS.danger;
+      status === 'open'
+        ? COLORS.success
+        : status === 'connecting' || status === 'reconnecting'
+          ? COLORS.gold
+          : COLORS.danger;
     const host = (() => {
       try {
         return new URL(SERVER_WS_URL).host;
@@ -453,22 +542,24 @@ export class LobbyScene extends Phaser.Scene {
         : status === 'connecting'
           ? 'ĐANG KẾT NỐI…'
           : status === 'reconnecting'
-            ? 'MẤT KẾT NỐI · ĐANG THỬ LẠI'
-            : 'CHƯA KẾT NỐI SERVER';
+            ? 'MẤT KẾT NỐI · THỬ LẠI'
+            : 'CHƯA KẾT NỐI';
 
     this.connText.setText(text);
     this.connText.setColor(hex(status === 'open' ? COLORS.muted : color));
     this.connDot.setFillStyle(color, 1);
 
-    const width = this.connText.width + 26;
+    const width = this.connText.width + 36;
+    const rightEdge = 1240;
+    const pillX = rightEdge - width;
     this.connPill.clear();
-    this.connPill.fillStyle(COLORS.bgDeep, 0.55);
-    this.connPill.fillRoundedRect(195 - width / 2, 114, width, 24, 12);
-    this.connPill.lineStyle(1, color, 0.22);
-    this.connPill.strokeRoundedRect(195 - width / 2, 114, width, 24, 12);
+    this.connPill.fillStyle(COLORS.bgDeep, 0.75);
+    this.connPill.fillRoundedRect(pillX, 34, width, 28, 14);
+    this.connPill.lineStyle(1.5, color, 0.35);
+    this.connPill.strokeRoundedRect(pillX, 34, width, 28, 14);
 
-    this.connDot.setPosition(195 - width / 2 + 12, 126);
-    this.connText.setPosition(195 - width / 2 + 20, 126);
+    this.connDot.setPosition(pillX + 14, 48);
+    this.connText.setPosition(pillX + 24, 48);
 
     const pulse = this.tweens.getTweensOf(this.connDot)[0];
     if (pulse) {
@@ -485,82 +576,87 @@ export class LobbyScene extends Phaser.Scene {
 
   private renderWallet(): void {
     this.walletLayer.removeAll(true);
-    this.walletLayer.add(sectionTitle(this, 30, 168, 'Ví Web3'));
+    this.walletLayer.add(sectionTitle(this, 46, 420, 'VÍ WEB3 · FUJI TESTNET'));
 
-    const chain = label(this, 360, 167, `FUJI · ${this.season.chainId}`, 8, COLORS.muted, 'bold').setOrigin(1, 0);
+    const chain = label(this, 380, 420, `FUJI (${this.season.chainId})`, 11, COLORS.muted, 'bold').setOrigin(1, 0);
 
     if (!this.session) {
       this.walletLayer.add(chain);
       const intro = this.add
         .text(
-          30,
-          194,
-          'Kết nối MetaMask để nạp USDC vào prize pool. Vốn không mất — chỉ phần lãi sinh ra được dùng làm giải thưởng.',
-          { ...textStyle(9, COLORS.muted), lineSpacing: 2, wordWrap: { width: 326 } },
+          46,
+          446,
+          'Kết nối MetaMask để nạp 100 USDC vào prize pool.\nVốn 100% được bảo toàn — giải thưởng tạo ra từ yield Benqi.',
+          { ...textStyle(12, COLORS.muted), lineSpacing: 4, wordWrap: { width: 336 } },
         )
-        .setResolution(3);
+        .setResolution(Math.max(window.devicePixelRatio || 1, 2));
+
       const button = new Button(
         this,
-        195,
-        255,
-        330,
-        38,
-        this.walletBusy ? 'ĐANG KẾT NỐI VÍ…' : hasWallet() ? 'KẾT NỐI VÍ' : 'CHƯA CÓ VÍ WEB3',
+        214,
+        530,
+        336,
+        44,
+        this.walletBusy ? 'ĐANG KẾT NỐI VÍ…' : hasWallet() ? 'KẾT NỐI VÍ METAMASK' : 'CHƯA CÓ VÍ WEB3',
         'secondary',
         () => void this.connect(),
       );
       button.setEnabled(!this.walletBusy && hasWallet());
+
       const foot = label(
         this,
-        30,
-        284,
-        this.walletError || 'Fuji Testnet · chainId 43113 · MetaMask / Core',
-        9,
+        46,
+        576,
+        this.walletError || 'Avalanche Fuji Testnet · ChainId 43113',
+        11,
         this.walletError ? COLORS.danger : COLORS.dim,
       );
       this.walletLayer.add([intro, button, foot]);
       return;
     }
 
-    const address = label(this, 30, 186, shortAddress(this.session.address), 13, COLORS.text, 'bold');
+    const address = label(this, 46, 444, shortAddress(this.session.address), 14, COLORS.text, 'bold');
     address.setFontFamily(MONO);
 
-    const balanceLabel = label(this, 30, 203, 'SỐ DƯ USDC', 8, COLORS.dim, 'bold').setLetterSpacing(1);
+    const balanceLabel = label(this, 46, 470, 'SỐ DƯ TESTNET USDC', 11, COLORS.dim, 'bold').setLetterSpacing(1);
     const balance = label(
       this,
-      30,
-      211,
+      46,
+      488,
       this.usdcBalance === null ? '—' : `${formatUsdc(this.usdcBalance)} USDC`,
-      19,
+      22,
       COLORS.text,
       'bold',
     );
 
     const depositLabel =
       this.walletBusy && this.depositStep === 'approve'
-        ? 'ĐANG APPROVE…'
+        ? 'ĐANG APPROVE USDC…'
         : this.walletBusy && this.depositStep === 'deposit'
-          ? 'ĐANG NẠP…'
+          ? 'ĐANG NẠP VÀO VAULT…'
           : this.walletBusy
             ? 'ĐANG XỬ LÝ…'
             : `NẠP ${DEPOSIT_USDC} USDC`;
-    const depositButton = new Button(this, 195, 257, 330, 34, depositLabel, 'gold', () => void this.deposit(), 12);
+
+    const depositButton = new Button(this, 214, 546, 336, 44, depositLabel, 'gold', () => void this.deposit(), 14);
     depositButton.setEnabled(!this.walletBusy && Boolean(this.season.vaultAddress) && Boolean(this.season.usdcAddress));
 
     let foot: Phaser.GameObjects.Text;
     if (this.walletError) {
-      foot = label(this, 30, 285, this.walletError, 9, COLORS.danger);
-      foot.setWordWrapWidth(326);
+      foot = label(this, 46, 584, this.walletError, 11, COLORS.danger);
+      foot.setWordWrapWidth(336);
     } else if (this.depositTx) {
-      foot = label(this, 30, 285, 'Xem giao dịch trên Snowtrace ↗', 9, COLORS.accent).setInteractive({ useHandCursor: true });
+      foot = label(this, 46, 584, 'Xem giao dịch trên Snowtrace ↗', 11, COLORS.accent).setInteractive({
+        useHandCursor: true,
+      });
       foot.on('pointerup', () => window.open(snowtraceTx(this.depositTx!), '_blank', 'noopener,noreferrer'));
     } else {
       foot = label(
         this,
-        30,
-        285,
-        this.walletNote || 'Nạp 100 USDC · không mất gốc · rút lại sau mùa',
-        9,
+        46,
+        584,
+        this.walletNote || 'Nạp 100 USDC · bảo toàn vốn 100% · rút sau mùa',
+        11,
         COLORS.dim,
       );
     }
@@ -571,7 +667,7 @@ export class LobbyScene extends Phaser.Scene {
   private renderSeason(): void {
     this.seasonLayer.removeAll(true);
     const snapshot = this.season;
-    this.seasonLayer.add(sectionTitle(this, 30, 332, 'Mùa giải · Prize pool'));
+    this.seasonLayer.add(sectionTitle(this, 46, 110, 'MÙA GIẢI & GIẢI THƯỞNG'));
 
     const source = !this.seasonLoaded
       ? 'ĐANG TẢI…'
@@ -580,42 +676,40 @@ export class LobbyScene extends Phaser.Scene {
         : snapshot.configured
           ? 'SERVER'
           : 'CHƯA CẤU HÌNH';
+
     const sourceText = label(
       this,
-      360,
-      331,
+      380,
+      110,
       source,
-      8,
+      11,
       !this.seasonLoaded ? COLORS.dim : snapshot.configured ? COLORS.accent : COLORS.dim,
       'bold',
     ).setOrigin(1, 0);
 
+    const prizeLabel = label(this, 46, 136, 'TỔNG PRIZE POOL (YIELD + SPONSOR)', 11, COLORS.gold, 'bold');
     const prize = label(
       this,
-      30,
-      350,
+      46,
+      154,
       snapshot.prizePool === null ? '— USDC' : `${formatUsdc(snapshot.prizePool)} USDC`,
-      24,
+      30,
       COLORS.gold,
       'bold',
     );
 
-    this.seasonCountdown = label(this, 360, 358, '', 8, COLORS.muted, 'bold').setOrigin(1, 0);
-    this.lastCountdown = -1;
-    this.update();
-
     const vaultLine = !this.seasonLoaded
-      ? 'Đang đọc cấu hình vault…'
+      ? 'Đang nạp cấu hình SeasonVault…'
       : snapshot.vaultAddress
-        ? `VAULT ${shortAddress(snapshot.vaultAddress)} ↗`
-        : 'VAULT chưa cấu hình — chờ server';
+        ? `Vault Contract: ${shortAddress(snapshot.vaultAddress)} ↗`
+        : 'SeasonVault chưa cấu hình';
     const vault = label(
       this,
-      30,
-      382,
+      46,
+      198,
       vaultLine,
-      8,
-      !this.seasonLoaded ? COLORS.dim : snapshot.vaultAddress ? COLORS.dim : COLORS.danger,
+      11,
+      !this.seasonLoaded ? COLORS.dim : snapshot.vaultAddress ? COLORS.accent : COLORS.danger,
     );
     if (snapshot.vaultAddress) {
       vault.setInteractive({ useHandCursor: true }).on('pointerup', () => {
@@ -623,17 +717,17 @@ export class LobbyScene extends Phaser.Scene {
       });
     }
 
-    const line = divider(this, 30, 396, 360);
-    this.seasonLayer.add([sourceText, prize, this.seasonCountdown, vault, line]);
+    const line = divider(this, 46, 222, 380);
+    this.seasonLayer.add([sourceText, prizeLabel, prize, vault, line]);
 
     const deposited = this.session ? formatUsdc(snapshot.userPrincipal) : '—';
-    const depositedLabel = label(this, 30, 406, 'BẠN ĐÃ NẠP', 9, COLORS.muted);
+    const depositedLabel = label(this, 46, 238, 'VỐN BẠN ĐÃ NẠP (100% NO-LOSS)', 12, COLORS.muted, 'bold');
     const depositedValue = label(
       this,
-      360,
-      406,
-      deposited === '—' ? '—' : `${deposited} USDC`,
-      10,
+      380,
+      238,
+      deposited === '—' ? '0 USDC' : `${deposited} USDC`,
+      13,
       COLORS.text,
       'bold',
     ).setOrigin(1, 0);
@@ -642,12 +736,17 @@ export class LobbyScene extends Phaser.Scene {
     const rankValue = rank
       ? `${formatInt(rank.points)} điểm (${rank.delta > 0 ? '+' : ''}${rank.delta})`
       : 'Chưa có trận xếp hạng';
-    const rankLabel = label(this, 30, 424, 'ĐIỂM RANK GẦN NHẤT', 9, COLORS.muted);
-    const rankText = label(this, 360, 424, rankValue, 10, rank ? COLORS.text : COLORS.dim, 'bold').setOrigin(1, 0);
+    const rankLabel = label(this, 46, 268, 'ĐIỂM XẾP HẠNG GẦN NHẤT', 12, COLORS.muted, 'bold');
+    const rankText = label(this, 380, 268, rankValue, 13, rank ? COLORS.text : COLORS.dim, 'bold').setOrigin(1, 0);
 
-    const claim = new Button(this, 195, 456, 330, 32, 'NHẬN THƯỞNG · CHƯA MỞ', 'ghost', () => undefined, 11);
+    const claim = new Button(this, 214, 320, 336, 40, 'NHẬN GIẢI THƯỞNG (CHƯA MỞ)', 'ghost', () => undefined, 13);
     claim.setEnabled(false);
-    this.seasonLayer.add([depositedLabel, depositedValue, rankLabel, rankText, claim]);
+
+    const sub = label(this, 46, 354, 'Giải thưởng chia theo tỷ lệ rank points cho Top 30% khi hết mùa.', 11, COLORS.dim);
+    sub.setWordWrapWidth(336);
+
+    const line2 = divider(this, 46, 396, 380);
+    this.seasonLayer.add([depositedLabel, depositedValue, rankLabel, rankText, claim, sub, line2]);
   }
 
   private renderLog(): void {
@@ -655,7 +754,7 @@ export class LobbyScene extends Phaser.Scene {
     this.logText.setText(
       lines.length > 0
         ? lines.map((event) => `› ${event}`).join('\n')
-        : '› Chưa có sự kiện.\n› Bấm "Tìm trận" để vào draft live 2-2.\n› Hoặc "Chơi với Bot" để đánh thử ngay.',
+        : '› Chưa có sự kiện trận đấu.\n› Bấm "Tìm trận đối kháng" để ghép PvP 2-2 draft live.\n› Hoặc bấm "Luyện tập với Bot" để thử ngay!',
     );
   }
 
@@ -663,18 +762,18 @@ export class LobbyScene extends Phaser.Scene {
     const open = this.connection === 'open';
     this.queueButton.setEnabled(open && !this.queued && !this.botPending);
     this.botButton.setEnabled(open && !this.queued && !this.botPending);
-    this.queueButton.setLabel(this.queued ? 'ĐANG TÌM TRẬN…' : 'TÌM TRẬN');
+    this.queueButton.setLabel(this.queued ? 'ĐANG TÌM TRẬN…' : 'TÌM TRẬN ĐỐI KHÁNG (PVP)');
 
     if (this.queued) {
       this.playStatus.setText(
-        this.queuePosition > 0 ? `Đang chờ đối thủ · vị trí #${this.queuePosition}` : 'Đang chờ đối thủ…',
+        this.queuePosition > 0 ? `Đang chờ đối thủ · Vị trí hàng đợi #${this.queuePosition}` : 'Đang tìm đối thủ…',
       );
       this.playStatus.setColor(hex(COLORS.gold));
     } else if (this.botPending) {
-      this.playStatus.setText('Đang mở trận luyện tập…');
+      this.playStatus.setText('Đang mở trận luyện tập với Bot…');
       this.playStatus.setColor(hex(COLORS.gold));
     } else if (!open) {
-      this.playStatus.setText('Không kết nối được server');
+      this.playStatus.setText('Chưa kết nối server');
       this.playStatus.setColor(hex(COLORS.danger));
     } else {
       this.playStatus.setText('Sẵn sàng vào trận');

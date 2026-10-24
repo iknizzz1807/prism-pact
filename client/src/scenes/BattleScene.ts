@@ -14,7 +14,7 @@ import { gameClient } from '../net/gameClient';
 import { matchStore } from '../state';
 import { Button } from '../ui/button';
 import { COLORS, hex, label, textStyle } from '../ui/theme';
-import { drawBackdrop, paintPanel, panel } from '../ui/panel';
+import { divider, drawBackdrop, paintPanel, panel } from '../ui/panel';
 import { StatBar } from '../ui/bar';
 import { Countdown } from '../ui/timer';
 import { drawGem, specialGlyph } from '../ui/gem';
@@ -27,13 +27,13 @@ import { formatInt, shortAddress } from '../util/format';
 import { addTouchTarget } from '../ui/touch';
 import { showTurnNotice } from '../ui/turnNotice';
 
-const BOARD_X = 35;
-const BOARD_Y = 214;
-const CELL = 40;
+const BOARD_X = 424;
+const BOARD_Y = 116;
+const CELL = 54;
 const SIZE = CONFIG.BOARD_SIZE;
 
-const SKILL_CHIP_X = [108, 198, 288] as const;
-const SKILL_CHIP_Y = 661;
+const SKILL_CHIP_X = [500, 640, 780] as const;
+const SKILL_CHIP_Y = 648;
 
 interface GemSlot {
   container: Phaser.GameObjects.Container;
@@ -53,7 +53,7 @@ export class BattleScene extends Phaser.Scene {
   private skillLayer!: Phaser.GameObjects.Container;
   private selectionGfx!: Phaser.GameObjects.Graphics;
   private arrowGfx!: Phaser.GameObjects.Graphics;
-  private exitText!: Phaser.GameObjects.Text;
+  private exitButton!: Button;
 
   private enemyCards: BattleHeroCard[] = [];
   private ownCards: BattleHeroCard[] = [];
@@ -96,10 +96,11 @@ export class BattleScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.fadeIn(220, 4, 6, 12);
     drawBackdrop(this);
+    this.drawLayoutPanels();
     this.drawManaBars();
     this.drawBoardFrame();
-    this.drawLogPanel();
     this.drawSkillBar();
+    this.drawLogPanel();
 
     this.skillLayer = this.add.container(0, 0);
     this.selectionGfx = this.add.graphics().setDepth(15);
@@ -112,7 +113,7 @@ export class BattleScene extends Phaser.Scene {
       matchStore.subscribe(() => {
         const view = matchStore.view;
         if (!view?.battle) return;
-        if (this.animating) return; // animation đang chạy, state mới sẽ xử lý sau
+        if (this.animating) return;
         const next = matchStore.consumeAnimation();
         if (next) {
           void this.playAnimation(next.animation, view);
@@ -145,39 +146,83 @@ export class BattleScene extends Phaser.Scene {
     this.timer.update();
   }
 
-  // ── Khung tĩnh ────────────────────────────────────────────────────────
+  // ── Khung bố cục PC (1280x720) ─────────────────────────────────────────
+
+  private drawLayoutPanels(): void {
+    // Left: Đội của bạn (Ally)
+    panel(this, 24, 16, 360, 688, { glow: COLORS.accent, glowAlpha: 0.06 });
+    label(this, 44, 28, 'ĐỘI CỦA BẠN (ALLY)', 14, COLORS.accent, 'bold').setLetterSpacing(1.2);
+
+    // Center: Bàn cờ Match-3
+    panel(this, 404, 16, 472, 688, { fill: COLORS.panelAlt, fillAlpha: 0.55 });
+
+    // Right: Đội đối thủ (Enemy) & Combat Log
+    panel(this, 896, 16, 360, 688, { glow: COLORS.enemy, glowAlpha: 0.06 });
+    label(this, 916, 28, 'ĐỘI ĐỐI THỦ (ENEMY) · LIVE', 14, COLORS.enemy, 'bold').setLetterSpacing(1.2);
+  }
 
   private drawManaBars(): void {
-    panel(this, 14, 150, 362, 48, { fill: COLORS.panelAlt, fillAlpha: 0.75 });
-
-    label(this, 28, 153, 'MANA ĐỊCH', 8, COLORS.enemy, 'bold').setLetterSpacing(0.8);
-    label(this, 28, 171, 'MANA BẠN', 8, COLORS.accent, 'bold').setLetterSpacing(0.8);
-
-    this.enemyManaBar = new StatBar(this, 90, 157, 220, 9, COLORS.mana);
-    this.ownManaBar = new StatBar(this, 90, 175, 220, 9, COLORS.accent);
-    this.add.existing(this.enemyManaBar);
+    // Ally Mana Bar
+    panel(this, 40, 50, 328, 48, { fill: COLORS.bgDeep, fillAlpha: 0.9, radius: 10 });
+    label(this, 54, 56, '💧 BỂ MANA TOÀN ĐỘI', 11, COLORS.accent, 'bold');
+    this.ownManaBar = new StatBar(this, 54, 76, 230, 12, COLORS.accent);
     this.add.existing(this.ownManaBar);
+    this.ownManaText = label(this, 354, 72, '0/100', 13, COLORS.accent, 'bold').setOrigin(1, 0);
 
-    this.enemyManaText = label(this, 360, 151, '0/100', 9, COLORS.text, 'bold').setOrigin(1, 0);
-    this.ownManaText = label(this, 360, 169, '0/100', 9, COLORS.accent, 'bold').setOrigin(1, 0);
+    // Enemy Mana Bar
+    panel(this, 912, 50, 328, 48, { fill: COLORS.bgDeep, fillAlpha: 0.9, radius: 10 });
+    label(this, 926, 56, '💧 MANA ĐỐI THỦ', 11, COLORS.enemy, 'bold');
+    this.enemyManaBar = new StatBar(this, 926, 76, 230, 12, COLORS.enemy);
+    this.add.existing(this.enemyManaBar);
+    this.enemyManaText = label(this, 1226, 72, '0/100', 13, COLORS.enemy, 'bold').setOrigin(1, 0);
   }
 
   private drawBoardFrame(): void {
-    panel(this, 23, 202, 344, 344, { fill: 0x0a111d, fillAlpha: 0.92, border: COLORS.border, borderAlpha: 0.7, radius: 18 });
+    // Khung ngoài bàn cờ
+    panel(this, 412, 104, 456, 456, {
+      fill: 0x070c16,
+      fillAlpha: 0.96,
+      border: COLORS.border,
+      borderAlpha: 0.8,
+      radius: 16,
+    });
     this.turnFrame = this.add.graphics().setDepth(1);
 
+    // Turn Banner phía trên bàn cờ
+    this.turnPill = this.add.graphics();
+    this.turnPillText = label(this, 640, 38, '', 14, COLORS.accent, 'bold')
+      .setOrigin(0.5, 0.5)
+      .setLetterSpacing(0.8);
+
+    this.turnPulse = this.tweens.add({
+      targets: this.turnPillText,
+      alpha: { from: 1, to: 0.4 },
+      duration: 650,
+      yoyo: true,
+      repeat: -1,
+      paused: true,
+    });
+
+    this.turnText = label(this, 860, 78, 'LƯỢT 1', 12, COLORS.muted, 'bold').setOrigin(1, 0.5);
+
+    // Timer ở giữa thanh trên
+    this.timer = new Countdown(this, 436, 78, 20);
+    this.add.existing(this.timer);
+
+    // Lưới ô cờ
     const grid = this.add.graphics();
     for (let index = 0; index < SIZE * SIZE; index += 1) {
       const col = index % SIZE;
       const row = Math.floor(index / SIZE);
       const x = BOARD_X + col * CELL;
       const y = BOARD_Y + row * CELL;
-      grid.fillStyle((row + col) % 2 === 0 ? 0x0d1522 : 0x101a2a, 0.9);
+      grid.fillStyle((row + col) % 2 === 0 ? 0x0a1220 : 0x0e172a, 0.95);
       grid.fillRoundedRect(x + 2, y + 2, CELL - 4, CELL - 4, 8);
-      grid.lineStyle(1, 0x1b263b, 0.55);
+      grid.lineStyle(1, 0x1c2b44, 0.65);
       grid.strokeRoundedRect(x + 2, y + 2, CELL - 4, CELL - 4, 8);
     }
 
+    // Các viên ngọc
     for (let index = 0; index < SIZE * SIZE; index += 1) {
       const col = index % SIZE;
       const row = Math.floor(index / SIZE);
@@ -186,7 +231,7 @@ export class BattleScene extends Phaser.Scene {
 
       const container = this.add.container(cx, cy);
       const graphics = this.add.graphics();
-      const glyph = label(this, 12, -12, '', 10, COLORS.text).setOrigin(0.5).setDepth(2);
+      const glyph = label(this, 14, -14, '', 12, COLORS.text, 'bold').setOrigin(0.5).setDepth(2);
       container.add([graphics, glyph]);
       container.setSize(CELL, CELL);
       addTouchTarget(container, this, CELL, CELL, {
@@ -197,30 +242,40 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  private drawLogPanel(): void {
-    panel(this, 14, 552, 362, 78, { fill: COLORS.panelAlt, fillAlpha: 0.65, borderAlpha: 0.5, radius: 12 });
+  private drawSkillBar(): void {
+    // Instruction Banner dưới bàn cờ
+    this.instructionText = label(
+      this,
+      640,
+      584,
+      'CHỌN MỤC TIÊU ĐỊCH → VUỐT 2 VIÊN NGỌC LIỀN KỀ ĐỂ TẤN CÔNG',
+      13,
+      COLORS.accent,
+      'bold',
+    ).setOrigin(0.5, 0.5);
 
-    this.turnPill = this.add.graphics();
-    this.turnPillText = label(this, 195, 559, '', 10, COLORS.accent, 'bold')
-      .setOrigin(0.5, 0)
-      .setLetterSpacing(0.6);
-    this.turnPulse = this.tweens.add({
-      targets: this.turnPillText,
-      alpha: { from: 1, to: 0.5 },
-      duration: 650,
-      yoyo: true,
-      repeat: -1,
-      paused: true,
-    });
-
-    this.turnText = label(this, 360, 560, '', 8, COLORS.muted, 'bold').setOrigin(1, 0);
-    this.instructionText = label(this, 26, 582, '', 8, COLORS.accent, 'bold');
-    this.logText = this.add
-      .text(26, 596, '', { ...textStyle(8.5, COLORS.muted), lineSpacing: 1, wordWrap: { width: 336 } })
-      .setResolution(3);
+    divider(this, 430, 608, 850);
   }
 
-  /** Thanh lượt cố định — luôn hiện, không phải thông báo tạm. */
+  private drawLogPanel(): void {
+    // Nhật ký trận đấu góc dưới bên phải
+    panel(this, 912, 474, 328, 214, { fill: COLORS.bgDeep, fillAlpha: 0.88, radius: 12 });
+    label(this, 928, 488, 'NHẬT KÝ LƯỢT ĐÁNH', 12, COLORS.muted, 'bold').setLetterSpacing(1.2);
+    label(this, 1224, 488, 'LIVE', 11, COLORS.accent, 'bold').setOrigin(1, 0);
+
+    this.logText = this.add
+      .text(928, 516, '', {
+        ...textStyle(12, COLORS.muted),
+        lineSpacing: 5,
+        wordWrap: { width: 296, useAdvancedWrap: true },
+      })
+      .setResolution(Math.max(window.devicePixelRatio || 1, 2));
+
+    this.exitButton = new Button(this, 1190, 656, 84, 30, 'THOÁT', 'ghost', () => this.requestExit(), 12);
+    this.add.existing(this.exitButton);
+  }
+
+  /** Thanh lượt cố định phía trên bàn cờ. */
   private renderTurnPill(yourTurn: boolean, suddenDeath: boolean): void {
     const g = this.turnPill;
     if (!g) return;
@@ -228,12 +283,12 @@ export class BattleScene extends Phaser.Scene {
 
     g.clear();
     g.fillStyle(color, 0.16);
-    g.fillRoundedRect(14, 552, 362, 26, { tl: 12, tr: 12, bl: 0, br: 0 });
-    g.lineStyle(1, color, 0.55);
-    g.strokeRoundedRect(14, 552, 362, 26, { tl: 12, tr: 12, bl: 0, br: 0 });
+    g.fillRoundedRect(420, 22, 440, 34, 17);
+    g.lineStyle(1.5, color, 0.65);
+    g.strokeRoundedRect(420, 22, 440, 34, 17);
 
     this.turnPillText.setText(
-      yourTurn ? '● LƯỢT CỦA BẠN — CHỌN MỤC TIÊU & XẾP NGỌC' : '● LƯỢT ĐỐI THỦ — ĐANG ĐI…',
+      yourTurn ? '● LƯỢT CỦA BẠN — CHỌN MỤC TIÊU & XẾP NGỌC' : '● LƯỢT ĐỐI THỦ — ĐANG SUY NGHĨ & RA ĐÒN…',
     );
     this.turnPillText.setColor(hex(color));
     this.turnPillText.setAlpha(1);
@@ -244,51 +299,40 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  private drawSkillBar(): void {
-    panel(this, 14, 632, 362, 58, { fill: COLORS.panelAlt, fillAlpha: 0.8, radius: 14 });
-
-    this.timer = new Countdown(this, 40, 661, 19);
-    this.add.existing(this.timer);
-
-    this.exitText = label(this, 360, 656, 'THOÁT', 8, COLORS.dim, 'bold')
-      .setOrigin(1, 0)
-      .setLetterSpacing(0.8)
-      .setInteractive({ useHandCursor: true })
-      .on('pointerup', () => this.requestExit());
-  }
-
   private ensureCards(view: MatchView): void {
     const battle = view.battle;
     if (!battle || this.enemyCards.length > 0) return;
     const you = view.you;
     const opponent = otherSide(you);
 
+    // 3 Tướng địch xếp dọc bên phải
     battle.sides[opponent].heroes.forEach((hero, index) => {
       const options: BattleCardOptions = {
-        width: 112,
-        height: 132,
+        width: 328,
+        height: 110,
         variant: 'enemy',
         onClick: (uid) => this.selectTarget(uid),
       };
-      const card = new BattleHeroCard(this, 72 + index * 123, 76, hero, options);
+      const card = new BattleHeroCard(this, 1076, 170 + index * 122, hero, options);
       this.add.existing(card);
       this.enemyCards.push(card);
     });
 
+    // 3 Tướng mình xếp dọc bên trái
     battle.sides[you].heroes.forEach((hero, index) => {
       const options: BattleCardOptions = {
-        width: 112,
-        height: 132,
+        width: 328,
+        height: 172,
         variant: 'ally',
         onClick: (uid) => this.selectCaster(uid),
       };
-      const card = new BattleHeroCard(this, 72 + index * 123, 768, hero, options);
+      const card = new BattleHeroCard(this, 204, 200 + index * 186, hero, options);
       this.add.existing(card);
       this.ownCards.push(card);
     });
   }
 
-  // ── Phát lại animation một lượt (Candy Crush style) ────────────────────
+  // ── Phát lại animation một lượt (Cascade style) ────────────────────────
 
   private cellX(index: number): number {
     return BOARD_X + (index % SIZE) * CELL + CELL / 2;
@@ -315,14 +359,13 @@ export class BattleScene extends Phaser.Scene {
     this.animating = true;
     this.busy = true;
 
-    // Không đếm giờ trong lúc animation chạy (server đã cộng bù thời gian này).
     this.timer.freeze();
 
     const enemyActing = anim.side !== view.you;
     this.renderTurnPill(!enemyActing, false);
     if (enemyActing) {
-      showTurnNotice(this, 374, 'ĐỐI THỦ ĐANG ĐÁNH', COLORS.enemy);
-      await this.delay(650);
+      showTurnNotice(this, 360, 'ĐỐI THỦ ĐANG RA ĐÒN', COLORS.enemy);
+      await this.delay(600);
       if (this.disposed) return;
     }
 
@@ -333,7 +376,7 @@ export class BattleScene extends Phaser.Scene {
         await this.animateWave(anim.waves[i]!, i, anim.side, anim.targetUid);
       }
     } catch {
-      // Animation lỗi thì bỏ qua — vẫn phải về đúng trạng thái cuối.
+      // Bỏ qua lỗi animation, đồng bộ trạng thái cuối
     } finally {
       this.animating = false;
       this.busy = false;
@@ -368,7 +411,6 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
-    // Áp đúng bàn sau swap do server gửi — không tự suy ra, tránh lệch khi state cũ.
     this.renderSnapshot(swapBoard);
   }
 
@@ -379,7 +421,7 @@ export class BattleScene extends Phaser.Scene {
       const gem = board[cell];
       slot.container.setPosition(this.cellX(cell), this.cellY(cell)).setScale(1).setAlpha(1).setAngle(0);
       if (gem) {
-        drawGem(slot.graphics, 30, gem.type, gem.special);
+        drawGem(slot.graphics, 38, gem.type, gem.special);
         slot.glyph.setText(specialGlyph(gem.special));
         slot.type = gem.type;
         slot.special = gem.special;
@@ -395,17 +437,14 @@ export class BattleScene extends Phaser.Scene {
     side: Side,
     targetUid: string | null,
   ): Promise<void> {
-    // 0) Combo: wave thứ 2 trở đi là chuỗi ăn liên tiếp
     if (index > 0) this.showCombo(index + 1);
 
-    // 0b) Bomb nổ: flash vàng + rung màn hình
     const bombs = wave.cleared.filter((cell) => this.gems[cell]?.special === 'BOMB');
     if (bombs.length > 0) {
       this.bombFlash(bombs);
       this.cameras.main.shake(180, 0.006);
     }
 
-    // Chụp lại nội dung TRƯỚC khi xoá để biết quân nào rơi từ đâu.
     const before = this.gems.map((slot) => ({ type: slot.type, special: slot.special }));
 
     // 1) Nối các viên match bằng tia sáng
@@ -420,8 +459,7 @@ export class BattleScene extends Phaser.Scene {
     const cleared = wave.cleared.filter((cell) => !created.has(cell));
     await Promise.all(cleared.map((cell) => this.popCell(cell)));
 
-    // 3) Rơi: ô đích hiển thị đúng quân từ ô nguồn, ô nguồn để TRỐNG
-    //    (trước đây vẽ sẵn cả bàn nên hai quân chồng nhau → trông như đổi icon)
+    // 3) Rơi: ô đích hiển thị đúng quân từ ô nguồn, ô nguồn để trống
     const destination = new Map<number, number>();
     for (const move of wave.moves) destination.set(move.to, move.from);
     const spawns = new Map(wave.spawned.map((spawn) => [spawn.index, spawn]));
@@ -433,7 +471,7 @@ export class BattleScene extends Phaser.Scene {
       if (!slot) continue;
       const source = before[from];
       if (source?.type) {
-        drawGem(slot.graphics, 30, source.type, source.special);
+        drawGem(slot.graphics, 38, source.type, source.special);
         slot.glyph.setText(specialGlyph(source.special));
         slot.type = source.type;
         slot.special = source.special;
@@ -458,7 +496,7 @@ export class BattleScene extends Phaser.Scene {
       if (!slot) continue;
       const gem = wave.board[spawn.index];
       if (gem) {
-        drawGem(slot.graphics, 30, gem.type, gem.special);
+        drawGem(slot.graphics, 38, gem.type, gem.special);
         slot.glyph.setText(specialGlyph(gem.special));
         slot.type = gem.type;
         slot.special = gem.special;
@@ -480,7 +518,6 @@ export class BattleScene extends Phaser.Scene {
       );
     }
 
-    // Ô nguồn: quân đã rơi đi nên phải xoá, tránh hiện trùng ở cả 2 ô.
     for (const move of wave.moves) {
       const from = move.from;
       if (destination.has(from) || spawns.has(from) || cleared.includes(from)) continue;
@@ -491,7 +528,6 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
-    // Ô bị xoá mà không nhận quân nào thì để trống trong lúc rơi.
     for (const cell of cleared) {
       const slot = this.gems[cell];
       if (!slot || destination.has(cell) || spawns.has(cell)) continue;
@@ -500,18 +536,17 @@ export class BattleScene extends Phaser.Scene {
 
     if (falls.length > 0) await Promise.all(falls);
 
-    // 4b) Ngọc bay tới đích: ATK → tướng bị đánh, HP/SHIELD → tướng đội mình,
-    //     MANA → thanh mana. Đây là thứ giải thích "ăn ngọc này thì được gì".
+    // 4b) Ngọc bay tới đích giải thích hiệu ứng
     this.flyGemEffects(wave, before, side, targetUid);
 
-    // 4) Chốt lại đúng board của wave (vị trí + nội dung)
+    // 4) Chốt lại đúng board của wave
     for (let cell = 0; cell < SIZE * SIZE; cell += 1) {
       const slot = this.gems[cell];
       if (!slot) continue;
       slot.container.setPosition(this.cellX(cell), this.cellY(cell)).setScale(1).setAlpha(1).setAngle(0);
       const gem = wave.board[cell];
       if (gem) {
-        drawGem(slot.graphics, 30, gem.type, gem.special);
+        drawGem(slot.graphics, 38, gem.type, gem.special);
         slot.glyph.setText(specialGlyph(gem.special));
         slot.type = gem.type;
         slot.special = gem.special;
@@ -520,7 +555,7 @@ export class BattleScene extends Phaser.Scene {
       }
     }
 
-    // 5) Ngọc đặc biệt vừa tạo: bật ra
+    // 5) Ngọc đặc biệt vừa tạo: bật nảy
     for (const item of wave.created) {
       const slot = this.gems[item.index];
       if (!slot) continue;
@@ -533,26 +568,25 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private showCombo(combo: number): void {
-    const text = label(this, 195, 370, `COMBO x${combo}`, 22, COLORS.gold, 'bold')
+    const text = label(this, 640, 360, `COMBO ×${combo}`, 34, COLORS.gold, 'bold')
       .setOrigin(0.5)
       .setDepth(55)
-      .setShadow(0, 2, '#000000', 10, true, true)
-      .setScale(0.55)
+      .setShadow(0, 4, '#000000', 12, true, true)
+      .setScale(0.6)
       .setAlpha(0);
 
     this.tweens.add({
       targets: text,
-      scale: 1,
+      scale: 1.1,
       alpha: 1,
       duration: 150,
       ease: 'Back.easeOut',
       yoyo: true,
-      hold: 380,
+      hold: 400,
       onComplete: () => text.destroy(),
     });
   }
 
-  /** Ngọc bay tới đích để giải thích hiệu ứng: ATK→mục tiêu, HP/SHIELD→đội, MANA→thanh mana. */
   private flyGemEffects(
     wave: WaveView,
     before: Array<{ type: GemType | null }>,
@@ -568,14 +602,14 @@ export class BattleScene extends Phaser.Scene {
     const you = this.view?.you;
     const actingAlly = side === you;
     const allyCards = actingAlly ? this.ownCards : this.enemyCards;
-    const manaPos = actingAlly ? { x: 200, y: 175 } : { x: 200, y: 157 };
+    const manaPos = actingAlly ? { x: 200, y: 76 } : { x: 1076, y: 76 };
 
     const targetCard = targetUid
       ? [...this.enemyCards, ...this.ownCards].find((card) => card.uid === targetUid)
       : null;
 
     this.flyOrbs(byType.ATK, COLORS.atk, () =>
-      targetCard ? { x: targetCard.x, y: targetCard.y } : { x: 195, y: BOARD_Y + 172 },
+      targetCard ? { x: targetCard.x, y: targetCard.y } : { x: 1076, y: 250 },
     );
 
     const allyPos = (i: number) => {
@@ -599,7 +633,7 @@ export class BattleScene extends Phaser.Scene {
       const to = dest(i);
       if (!to) continue;
 
-      const orb = this.add.circle(this.cellX(cell), this.cellY(cell), 3.5, color, 0.95).setDepth(30);
+      const orb = this.add.circle(this.cellX(cell), this.cellY(cell), 4.5, color, 0.95).setDepth(30);
       this.tweens.add({
         targets: orb,
         x: to.x,
@@ -614,13 +648,12 @@ export class BattleScene extends Phaser.Scene {
     }
   }
 
-  /** Nháy đỏ card khi ăn damage. */
   private flashCard(uid: string): void {
     const card = [...this.enemyCards, ...this.ownCards].find((item) => item.uid === uid);
     if (!card) return;
 
     const rect = this.add
-      .rectangle(card.x, card.y, card.widthValue, card.heightValue, COLORS.danger, 0.32)
+      .rectangle(card.x, card.y, card.widthValue, card.heightValue, COLORS.danger, 0.35)
       .setDepth(28);
 
     this.tweens.add({
@@ -635,12 +668,12 @@ export class BattleScene extends Phaser.Scene {
   private bombFlash(cells: number[]): void {
     for (const cell of cells) {
       const ring = this.add
-        .circle(this.cellX(cell), this.cellY(cell), 18)
-        .setStrokeStyle(4, COLORS.gold, 0.9)
+        .circle(this.cellX(cell), this.cellY(cell), 22)
+        .setStrokeStyle(5, COLORS.gold, 0.95)
         .setDepth(26);
       this.tweens.add({
         targets: ring,
-        scale: 3.2,
+        scale: 3.5,
         alpha: 0,
         duration: 380,
         ease: 'Quad.easeOut',
@@ -669,10 +702,10 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private burst(x: number, y: number, color: number): void {
-    for (let i = 0; i < 4; i += 1) {
+    for (let i = 0; i < 5; i += 1) {
       const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-      const distance = Phaser.Math.Between(12, 30);
-      const dot = this.add.circle(x, y, Phaser.Math.Between(2, 4), color, 0.95).setDepth(25);
+      const distance = Phaser.Math.Between(14, 34);
+      const dot = this.add.circle(x, y, Phaser.Math.Between(3, 5), color, 0.95).setDepth(25);
       this.tweens.add({
         targets: dot,
         x: x + Math.cos(angle) * distance,
@@ -725,8 +758,8 @@ export class BattleScene extends Phaser.Scene {
         g.strokePath();
       };
 
-      path(14, 0.22);
-      path(6, 0.85);
+      path(16, 0.25);
+      path(7, 0.9);
     }
   }
 
@@ -736,10 +769,10 @@ export class BattleScene extends Phaser.Scene {
     if (!g) return;
     g.clear();
     const color = suddenDeath ? COLORS.danger : yourTurn ? COLORS.accent : COLORS.enemy;
-    g.lineStyle(10, color, yourTurn ? 0.1 : 0.06);
-    g.strokeRoundedRect(23, 202, 344, 344, 18);
-    g.lineStyle(2, color, yourTurn ? 0.85 : 0.45);
-    g.strokeRoundedRect(23, 202, 344, 344, 18);
+    g.lineStyle(12, color, yourTurn ? 0.12 : 0.07);
+    g.strokeRoundedRect(412, 104, 456, 456, 16);
+    g.lineStyle(2, color, yourTurn ? 0.9 : 0.5);
+    g.strokeRoundedRect(412, 104, 456, 456, 16);
   }
 
   // ── State → render ────────────────────────────────────────────────────
@@ -773,8 +806,8 @@ export class BattleScene extends Phaser.Scene {
     if (turnChanged) {
       showTurnNotice(
         this,
-        374,
-        yourTurn ? 'LƯỢT CỦA BẠN — CHỌN MỤC TIÊU' : 'LƯỢT ĐỐI THỦ',
+        360,
+        yourTurn ? 'LƯỢT CỦA BẠN — CHỌN MỤC TIÊU' : 'LƯỢT ĐỐI THỦ ĐANG RA ĐÒN',
         yourTurn ? COLORS.accent : COLORS.enemy,
       );
     }
@@ -837,7 +870,7 @@ export class BattleScene extends Phaser.Scene {
 
         const shieldDelta = hero.shield - previous.shield;
         if (shieldDelta > 0.5) this.floatingOnHero(hero.uid, `+${Math.round(shieldDelta)} giáp`, COLORS.shield);
-        if (previous.alive && !hero.alive) this.floatingOnHero(hero.uid, 'HẠ GỤC', COLORS.danger, 12);
+        if (previous.alive && !hero.alive) this.floatingOnHero(hero.uid, 'HẠ GỤC', COLORS.danger, 15);
       }
       next.set(hero.uid, { hp: hero.hp, shield: hero.shield, alive: hero.alive });
     }
@@ -845,16 +878,15 @@ export class BattleScene extends Phaser.Scene {
     this.previousHeroes = next;
   }
 
-  /** Rung nhẹ card khi ăn damage. */
   private shakeCard(uid: string): void {
     const card = [...this.enemyCards, ...this.ownCards].find((item) => item.uid === uid);
     if (!card) return;
     const baseX = card.x;
     this.tweens.killTweensOf(card);
-    card.x = baseX - 4;
+    card.x = baseX - 5;
     this.tweens.add({
       targets: card,
-      x: baseX + 4,
+      x: baseX + 5,
       duration: 55,
       yoyo: true,
       repeat: 2,
@@ -865,18 +897,18 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  private floatingOnHero(uid: string, text: string, color: number, size = 15): void {
+  private floatingOnHero(uid: string, text: string, color: number, size = 18): void {
     const card = [...this.enemyCards, ...this.ownCards].find((item) => item.uid === uid);
     if (!card) return;
-    const x = card.x + Phaser.Math.Between(-16, 16);
-    const y = card.y + card.heightValue / 2 - 28;
+    const x = card.x + Phaser.Math.Between(-20, 20);
+    const y = card.y + card.heightValue / 2 - 32;
     const float = label(this, x, y, text, size, color, 'bold')
       .setOrigin(0.5)
       .setDepth(40)
-      .setShadow(0, 2, '#000000', 4, true, true);
+      .setShadow(0, 2, '#000000', 6, true, true);
     this.tweens.add({
       targets: float,
-      y: y - 34,
+      y: y - 40,
       alpha: { from: 1, to: 0 },
       duration: 950,
       ease: 'Cubic.easeOut',
@@ -895,7 +927,7 @@ export class BattleScene extends Phaser.Scene {
       const changed = slot.type !== cell.type || slot.special !== cell.special;
       if (!changed) return;
 
-      drawGem(slot.graphics, 30, cell.type, cell.special);
+      drawGem(slot.graphics, 38, cell.type, cell.special);
       slot.glyph.setText(specialGlyph(cell.special));
       slot.type = cell.type;
       slot.special = cell.special;
@@ -928,28 +960,35 @@ export class BattleScene extends Phaser.Scene {
 
       const chip = this.add.container(SKILL_CHIP_X[index], SKILL_CHIP_Y);
       const bg = this.add.graphics();
-      bg.fillStyle(selected ? 0x1b2c3a : ready ? 0x152434 : 0x101722, 0.96);
-      bg.fillRoundedRect(-42, -19, 84, 38, 10);
-      bg.lineStyle(selected ? 2 : 1, selected ? COLORS.violet : ready ? COLORS.accent : COLORS.border, ready || selected ? 0.9 : 0.5);
-      bg.strokeRoundedRect(-42, -19, 84, 38, 10);
+      bg.fillStyle(selected ? 0x192b3a : ready ? 0x152332 : 0x0f1622, 0.96);
+      bg.fillRoundedRect(-64, -22, 128, 44, 10);
+      bg.lineStyle(
+        selected ? 2 : 1.5,
+        selected ? COLORS.violet : ready ? COLORS.accent : COLORS.border,
+        ready || selected ? 0.95 : 0.45,
+      );
+      bg.strokeRoundedRect(-64, -22, 128, 44, 10);
+
       if (ready) {
-        bg.fillStyle(COLORS.accent, 0.9);
-        bg.fillCircle(36, -13, 2.5);
+        bg.fillStyle(COLORS.accent, 0.95);
+        bg.fillCircle(54, -14, 3.5);
       }
 
-      const top = label(this, 0, -12, `${ARCHETYPE_EMOJI[hero.archetype]} ${hero.archetype}`, 8, ready ? COLORS.text : COLORS.dim, 'bold').setOrigin(0.5);
+      const emoji = ARCHETYPE_EMOJI[hero.archetype];
+      const top = label(this, 0, -12, `${emoji} ${hero.archetype}`, 12, ready ? COLORS.text : COLORS.dim, 'bold').setOrigin(0.5);
       const bottom = label(
         this,
         0,
-        1,
-        `${truncate(hero.skill.name, 12)} · ${hero.skill.mana}`,
-        7,
+        5,
+        `${truncate(hero.skill.name, 11)} (${hero.skill.mana}💧)`,
+        11,
         accent,
+        'bold',
       ).setOrigin(0.5);
 
       chip.add([bg, top, bottom]);
-      chip.setSize(84, 38);
-      addTouchTarget(chip, this, 84, 38, { onUp: () => this.onSkillChip(hero.uid) });
+      chip.setSize(128, 44);
+      addTouchTarget(chip, this, 128, 44, { onUp: () => this.onSkillChip(hero.uid) });
       this.skillLayer.add(chip);
 
       const card = this.ownCards[index];
@@ -973,10 +1012,12 @@ export class BattleScene extends Phaser.Scene {
     const card = this.enemyCards.find((item) => item.uid === targetUid);
     if (!card) return;
 
-    const startX = 195;
-    const startY = 702;
-    const endX = card.x;
-    const endY = card.y + card.heightValue / 2 + 3;
+    // Đường nối mục tiêu xuất phát từ mép phải bàn cờ hướng sang card địch
+    const startX = BOARD_X + 8 * CELL + 4;
+    const startY = 332;
+    const endX = card.x - card.widthValue / 2;
+    const endY = card.y;
+
     const dx = endX - startX;
     const dy = endY - startY;
     const length = Math.hypot(dx, dy);
@@ -984,14 +1025,14 @@ export class BattleScene extends Phaser.Scene {
     const ux = dx / length;
     const uy = dy / length;
     const color = this.pendingTarget ? COLORS.gold : COLORS.accent;
-    const alpha = this.pendingTarget ? 0.72 : 0.42;
+    const alpha = this.pendingTarget ? 0.85 : 0.55;
 
-    g.lineStyle(7, color, alpha * 0.14);
+    g.lineStyle(8, color, alpha * 0.16);
     g.lineBetween(startX, startY, endX, endY);
-    g.lineStyle(2, color, alpha);
-    const dash = 10;
-    const gap = 6;
-    for (let travelled = 22; travelled < length - 18; travelled += dash + gap) {
+    g.lineStyle(2.5, color, alpha);
+    const dash = 12;
+    const gap = 8;
+    for (let travelled = 10; travelled < length - 18; travelled += dash + gap) {
       const t0 = travelled;
       const t1 = Math.min(travelled + dash, length - 16);
       g.lineBetween(startX + ux * t0, startY + uy * t0, startX + ux * t1, startY + uy * t1);
@@ -999,16 +1040,16 @@ export class BattleScene extends Phaser.Scene {
 
     const tipX = startX + ux * (length - 6);
     const tipY = startY + uy * (length - 6);
-    const wing = 12;
+    const wing = 14;
     const angle = Math.atan2(uy, ux);
     g.lineStyle(3, color, Math.min(1, alpha * 1.4));
-    g.lineBetween(tipX, tipY, tipX - Math.cos(angle - 0.42) * wing, tipY - Math.sin(angle - 0.42) * wing);
-    g.lineBetween(tipX, tipY, tipX - Math.cos(angle + 0.42) * wing, tipY - Math.sin(angle + 0.42) * wing);
+    g.lineBetween(tipX, tipY, tipX - Math.cos(angle - 0.45) * wing, tipY - Math.sin(angle - 0.45) * wing);
+    g.lineBetween(tipX, tipY, tipX - Math.cos(angle + 0.45) * wing, tipY - Math.sin(angle + 0.45) * wing);
 
-    g.fillStyle(color, alpha * 0.9);
-    g.fillCircle(startX, startY, 4);
-    g.lineStyle(1.5, color, alpha * 0.5);
-    g.strokeCircle(startX, startY, 9);
+    g.fillStyle(color, alpha * 0.95);
+    g.fillCircle(startX, startY, 5);
+    g.lineStyle(2, color, alpha * 0.6);
+    g.strokeCircle(startX, startY, 11);
   }
 
   private drawSelection(): void {
@@ -1016,12 +1057,12 @@ export class BattleScene extends Phaser.Scene {
     g.clear();
     if (this.selectedCell === null) return;
     const { x, y } = this.cellCenter(this.selectedCell);
-    g.fillStyle(COLORS.accent, 0.09);
-    g.fillRoundedRect(x - 19, y - 19, 38, 38, 9);
-    g.lineStyle(6, COLORS.accent, 0.16);
-    g.strokeRoundedRect(x - 19, y - 19, 38, 38, 9);
-    g.lineStyle(2, COLORS.accent, 0.95);
-    g.strokeRoundedRect(x - 19, y - 19, 38, 38, 9);
+    g.fillStyle(COLORS.accent, 0.12);
+    g.fillRoundedRect(x - 26, y - 26, 52, 52, 10);
+    g.lineStyle(6, COLORS.accent, 0.2);
+    g.strokeRoundedRect(x - 26, y - 26, 52, 52, 10);
+    g.lineStyle(2.5, COLORS.accent, 0.95);
+    g.strokeRoundedRect(x - 26, y - 26, 52, 52, 10);
   }
 
   // ── Tương tác ─────────────────────────────────────────────────────────
@@ -1045,7 +1086,7 @@ export class BattleScene extends Phaser.Scene {
 
     const dx = pointer.x - this.pressX;
     const dy = pointer.y - this.pressY;
-    if (Math.hypot(dx, dy) > 14) {
+    if (Math.hypot(dx, dy) > 16) {
       const target = this.directionTarget(from, dx, dy);
       if (target !== null) this.trySwap(from, target);
       return;
@@ -1117,20 +1158,18 @@ export class BattleScene extends Phaser.Scene {
     this.pendingSkill = null;
     this.armedCaster = null;
     this.updateInstruction();
-    // busy được mở lại khi server trả state (hoặc sau 3s nếu mất mạng).
     this.time.delayedCall(3_000, () => {
       if (!this.disposed) this.busy = false;
     });
   }
 
-  /** Nhấn nhá nhẹ 2 ô vừa chọn. */
   private tapCellFx(from: number, to: number): void {
     for (const index of [from, to]) {
       const slot = this.gems[index];
       if (!slot) continue;
       this.tweens.add({
         targets: slot.container,
-        scale: { from: 1.12, to: 1 },
+        scale: { from: 1.15, to: 1 },
         duration: 220,
         ease: 'Back.easeOut',
       });
@@ -1156,7 +1195,7 @@ export class BattleScene extends Phaser.Scene {
     this.pendingTarget = uid;
     this.syncTargetVisuals();
     this.updateInstruction();
-    this.showToast(`Mục tiêu: ${hero.archetype}`, COLORS.gold);
+    this.showToast(`🎯 Mục tiêu: ${hero.archetype}`, COLORS.gold);
   }
 
   private onSkillChip(uid: string): void {
@@ -1167,7 +1206,7 @@ export class BattleScene extends Phaser.Scene {
     const state = this.heroOf(uid);
     if (!state) return;
     if (this.skillSpent) {
-      this.showToast('Mỗi lượt chỉ dùng 1 chiêu', COLORS.gold);
+      this.showToast('Mỗi lượt chỉ dùng tối đa 1 chiêu', COLORS.gold);
       return;
     }
     if (!state.alive) return;
@@ -1180,9 +1219,10 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     this.armedCaster = uid;
-    this.pendingSkill = null;
+    this.pendingSkill = uid;
     this.renderCurrentSkills();
     this.updateInstruction();
+    this.showToast(`⚡ Đã kích hoạt ${state.skill.name} · Xếp ngọc để xuất chiêu`, COLORS.accent);
   }
 
   private selectCaster(uid: string): void {
@@ -1240,13 +1280,13 @@ export class BattleScene extends Phaser.Scene {
   private requestExit(): void {
     if (!this.exitArmed) {
       this.exitArmed = true;
-      this.exitText.setText('CHẮC CHƯA?');
-      this.exitText.setColor(hex(COLORS.danger));
-      this.time.delayedCall(2_500, () => {
+      this.exitButton.setLabel('XÁC NHẬN?');
+      this.exitButton.setVariant('danger');
+      this.time.delayedCall(3_000, () => {
         if (this.disposed) return;
         this.exitArmed = false;
-        this.exitText.setText('THOÁT');
-        this.exitText.setColor(hex(COLORS.dim));
+        this.exitButton.setLabel('THOÁT');
+        this.exitButton.setVariant('ghost');
       });
       return;
     }
@@ -1256,7 +1296,7 @@ export class BattleScene extends Phaser.Scene {
   private leaveToLobby(): void {
     gameClient.leaveMatch();
     matchStore.clear();
-    matchStore.pushEvent('Đã trở về sàn đấu.');
+    matchStore.pushEvent('Đã trở về sảnh chính.');
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────
@@ -1270,9 +1310,11 @@ export class BattleScene extends Phaser.Scene {
   private heroOf(uid: string): HeroView | null {
     const view = this.view;
     if (!view?.battle) return null;
-    return view.battle.sides[view.you].heroes.find((hero) => hero.uid === uid)
-      ?? view.battle.sides[otherSide(view.you)].heroes.find((hero) => hero.uid === uid)
-      ?? null;
+    return (
+      view.battle.sides[view.you].heroes.find((hero) => hero.uid === uid) ??
+      view.battle.sides[otherSide(view.you)].heroes.find((hero) => hero.uid === uid) ??
+      null
+    );
   }
 
   private defaultTargetUid(): string | null {
@@ -1300,42 +1342,42 @@ export class BattleScene extends Phaser.Scene {
     if (!this.view?.battle) {
       text = 'Đang tải trận đấu…';
     } else if (!this.isMyTurn()) {
-      text = 'Đang chờ đối thủ xếp ngọc…';
+      text = 'Đang chờ đối thủ ra đòn…';
     } else if (this.armedCaster) {
-      text = 'Chạm tướng của bạn để chọn chiêu.';
+      text = 'Chạm tướng để chuẩn bị chiêu thức.';
     } else if (this.pendingSkill) {
       const hero = this.heroOf(this.pendingSkill);
       const target = this.pendingTarget ? this.heroOf(this.pendingTarget) : null;
       text = hero
-        ? `${hero.skill.name} sẵn sàng${target ? ` → ${target.archetype}` : ''} · xếp ngọc để tung.`
-        : 'Xếp ngọc để tung chiêu.';
+        ? `⚡ ${hero.skill.name} sẵn sàng${target ? ` → ${target.archetype}` : ''} · Hãy swap ngọc để tung chiêu!`
+        : 'Hãy swap ngọc để tung chiêu!';
     } else if (this.selectedCell !== null) {
-      text = 'Chạm 1 ngọc kề cạnh để đổi chỗ.';
+      text = 'Chạm 1 viên ngọc kề cạnh để đổi chỗ.';
     } else {
-      text = 'Chạm 2 ngọc kề nhau (hoặc kéo) để đổi.';
+      text = 'CHỌN MỤC TIÊU ĐỊCH BÊN PHẢI → VUỐT 2 VIÊN NGỌC LIỀN KỀ ĐỂ TẤN CÔNG';
     }
     this.instructionText.setText(text);
     this.instructionText.setColor(hex(this.isMyTurn() ? COLORS.accent : COLORS.dim));
   }
 
   private renderLog(): void {
-    const lines = matchStore.events.slice(-3).map((event) => `› ${truncate(event, 76)}`);
-    this.logText.setText(lines.length > 0 ? lines.join('\n') : '› Trận đấu bắt đầu.');
+    const lines = matchStore.events.slice(-5).map((event) => `› ${truncate(event, 42)}`);
+    this.logText.setText(lines.length > 0 ? lines.join('\n') : '› Trận đấu đã bắt đầu.');
   }
 
   private showToast(message: string, color: number): void {
     if (this.toastText) this.toastText.destroy();
-    const toast = label(this, 195, 350, message, 10, color, 'bold')
+    const toast = label(this, 640, 360, message, 14, color, 'bold')
       .setOrigin(0.5)
       .setDepth(60)
-      .setBackgroundColor('#0b101aee')
-      .setPadding(9, 6, 9, 6);
+      .setBackgroundColor('#070c16f2')
+      .setPadding(16, 10, 16, 10);
     this.toastText = toast;
     this.tweens.add({
       targets: toast,
-      y: 332,
+      y: 330,
       alpha: { from: 1, to: 0 },
-      delay: 1_000,
+      delay: 1_200,
       duration: 600,
       onComplete: () => {
         toast.destroy();
@@ -1344,7 +1386,7 @@ export class BattleScene extends Phaser.Scene {
     });
   }
 
-  // ── Kết quả ───────────────────────────────────────────────────────────
+  // ── Màn hình Kết quả PC ───────────────────────────────────────────────
 
   private showResult(view: MatchView): void {
     if (this.resultOverlay) return;
@@ -1355,84 +1397,113 @@ export class BattleScene extends Phaser.Scene {
     const draw = winner === 'draw';
 
     const overlay = this.add.container(0, 0).setDepth(2000);
-    const dim = this.add.rectangle(195, 422, 390, 844, 0x03050a, 0.86).setInteractive();
+    const dim = this.add.rectangle(640, 360, 1280, 720, 0x03050a, 0.88).setInteractive();
+
+    const modalW = 460;
+    const modalH = 480;
+    const modalX = 640 - modalW / 2;
+    const modalY = 360 - modalH / 2;
+
     const backdrop = this.add.graphics();
-    paintPanel(backdrop, 28, 236, 334, 372, {
+    paintPanel(backdrop, modalX, modalY, modalW, modalH, {
       fill: COLORS.panel,
       fillAlpha: 0.99,
       border: draw ? COLORS.gold : won ? COLORS.accent : COLORS.danger,
-      borderAlpha: 0.6,
+      borderAlpha: 0.65,
       glow: draw ? COLORS.gold : won ? COLORS.accent : COLORS.danger,
-      glowAlpha: 0.18,
-      radius: 22,
+      glowAlpha: 0.22,
+      radius: 20,
     });
 
-    const kicker = label(this, 195, 264, won ? 'KẾT QUẢ TRẬN ĐẤU' : draw ? 'CÂN TÀI CÂN SỨC' : 'KẾT QUẢ TRẬN ĐẤU', 8, COLORS.dim, 'bold')
+    const kicker = label(
+      this,
+      640,
+      modalY + 28,
+      won ? 'KẾT QUẢ TRẬN ĐẤU' : draw ? 'CÂN TÀI CÂN SỨC' : 'KẾT QUẢ TRẬN ĐẤU',
+      12,
+      COLORS.dim,
+      'bold',
+    )
       .setOrigin(0.5, 0)
       .setLetterSpacing(1.6);
 
-    const title = label(this, 195, 288, draw ? 'HOÀ' : won ? 'CHIẾN THẮNG' : 'THẤT BẠI', 32, draw ? COLORS.gold : won ? COLORS.accent : COLORS.danger, 'bold')
+    const title = label(
+      this,
+      640,
+      modalY + 54,
+      draw ? 'TRẬN ĐẤU HOÀ' : won ? 'CHIẾN THẮNG' : 'THẤT BẠI',
+      36,
+      draw ? COLORS.gold : won ? COLORS.accent : COLORS.danger,
+      'bold',
+    )
       .setOrigin(0.5, 0)
-      .setLetterSpacing(2)
-      .setShadow(0, 0, won ? '#5eead4' : draw ? '#fbbf24' : '#f87171', 12, true, true);
+      .setLetterSpacing(3)
+      .setShadow(0, 0, won ? '#2dd4bf' : draw ? '#fbbf24' : '#f87171', 16, true, true);
 
     const subtitle = label(
       this,
-      195,
-      336,
+      640,
+      modalY + 112,
       draw
-        ? 'Không ai mất điểm rank trong trận này.'
+        ? 'Hai bên cầm cự ngang sức — Không trừ điểm rank.'
         : won
           ? view.mode === 'bot'
-            ? 'Bạn đã hạ gục đội hình bot.'
-            : 'Bạn đã hạ gục toàn bộ đội hình đối thủ.'
+            ? 'Bạn đã xuất sắc đánh bại đội hình Bot!'
+            : 'Bạn đã quét sạch toàn bộ đội hình đối thủ!'
           : view.mode === 'bot'
-            ? 'Bot đã thắng trận luyện tập này.'
-            : 'Đối thủ đã hạ gục đội hình của bạn.',
-      10,
+            ? 'Bot đã giành chiến thắng trong trận đấu tập.'
+            : 'Đối thủ đã hạ gục toàn bộ đội hình của bạn.',
+      14,
       COLORS.muted,
+      'bold',
     ).setOrigin(0.5, 0);
-    subtitle.setWordWrapWidth(280);
+    subtitle.setWordWrapWidth(380);
     subtitle.setAlign('center');
 
     const box = this.add.graphics();
-    box.fillStyle(COLORS.bgDeep, 0.7);
-    box.fillRoundedRect(62, 370, 266, 88, 14);
-    box.lineStyle(1, COLORS.border, 0.8);
-    box.strokeRoundedRect(62, 370, 266, 88, 14);
+    box.fillStyle(COLORS.bgDeep, 0.85);
+    box.fillRoundedRect(modalX + 40, modalY + 160, modalW - 80, 110, 14);
+    box.lineStyle(1.5, COLORS.border, 0.9);
+    box.strokeRoundedRect(modalX + 40, modalY + 160, modalW - 80, 110, 14);
 
     const delta = rank?.delta ?? 0;
     const deltaColor = delta > 0 ? COLORS.success : delta < 0 ? COLORS.danger : COLORS.muted;
-    const deltaText = label(this, 195, 382, `${delta > 0 ? '+' : ''}${delta}`, 26, deltaColor, 'bold').setOrigin(0.5, 0);
-    const deltaLabel = label(this, 195, 414, 'ĐIỂM RANK', 8, COLORS.dim, 'bold').setOrigin(0.5, 0).setLetterSpacing(1.4);
+    const deltaText = label(this, 640, modalY + 172, `${delta > 0 ? '+' : ''}${delta}`, 36, deltaColor, 'bold').setOrigin(
+      0.5,
+      0,
+    );
+    const deltaLabel = label(this, 640, modalY + 218, 'ĐIỂM XẾP HẠNG (RANK POINTS)', 11, COLORS.dim, 'bold')
+      .setOrigin(0.5, 0)
+      .setLetterSpacing(1.4);
 
     const points = label(
       this,
-      195,
-      428,
-      rank ? `${formatInt(rank.points)} điểm` : 'Chưa có dữ liệu rank',
-      9,
+      640,
+      modalY + 238,
+      rank ? `Tổng điểm hiện tại: ${formatInt(rank.points)} điểm` : 'Chưa có dữ liệu rank',
+      13,
       COLORS.muted,
+      'bold',
     ).setOrigin(0.5, 0);
 
     const info = label(
       this,
-      195,
-      486,
-      `TRẬN ${view.mode === 'bot' ? 'LUYỆN TẬP' : 'PVP'} · ${shortAddress(view.matchId)}`,
-      8,
+      640,
+      modalY + 300,
+      `CHẾ ĐỘ ${view.mode === 'bot' ? 'LUYỆN TẬP BOT' : 'PVP ĐỐI KHÁNG'} · MÃ TRẬN ${shortAddress(view.matchId)}`,
+      12,
       COLORS.dim,
     )
       .setOrigin(0.5, 0)
-      .setLetterSpacing(0.6);
+      .setLetterSpacing(0.8);
 
-    const button = new Button(this, 195, 552, 270, 42, 'VỀ SÀN ĐẤU', 'primary', () => this.leaveToLobby(), 12);
+    const button = new Button(this, 640, modalY + 380, modalW - 80, 48, 'TRỞ VỀ SẢNH CHÍNH', 'primary', () => this.leaveToLobby(), 16);
 
     overlay.add([dim, backdrop, kicker, title, subtitle, box, deltaText, deltaLabel, points, info, button]);
     this.resultOverlay = overlay;
 
     overlay.setAlpha(0);
-    overlay.y = 14;
+    overlay.y = 16;
     this.tweens.add({
       targets: overlay,
       alpha: 1,
@@ -1440,7 +1511,7 @@ export class BattleScene extends Phaser.Scene {
       duration: 260,
       ease: 'Quad.easeOut',
     });
-    this.cameras.main.flash(180, 94, 234, 212, false);
+    this.cameras.main.flash(180, 45, 212, 191, false);
   }
 }
 

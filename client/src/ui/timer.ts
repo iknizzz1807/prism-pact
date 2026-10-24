@@ -12,11 +12,12 @@ export class Countdown extends Phaser.GameObjects.Container {
   private lastColor = -1;
   private frozen = false;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, radius = 21) {
+  constructor(scene: Phaser.Scene, x: number, y: number, radius = 24) {
     const ring = scene.add.graphics();
+    const res = typeof window !== 'undefined' ? Math.max(window.devicePixelRatio || 1, 2) : 2;
     const caption = scene.add
-      .text(0, 0, '—', textStyle(12, COLORS.text, 'bold'))
-      .setResolution(3)
+      .text(0, 0, '—', textStyle(14, COLORS.text, 'bold'))
+      .setResolution(res)
       .setOrigin(0.5);
     super(scene, x, y, [ring, caption]);
     this.ring = ring;
@@ -67,19 +68,19 @@ export class Countdown extends Phaser.GameObjects.Container {
   private redraw(ratio: number, color: number = COLORS.accent): void {
     const g = this.ring;
     g.clear();
-    g.fillStyle(COLORS.bgDeep, 0.92);
+    g.fillStyle(COLORS.bgDeep, 0.94);
     g.fillCircle(0, 0, this.radius);
-    g.lineStyle(1, COLORS.border, 0.9);
+    g.lineStyle(1.5, COLORS.border, 0.9);
     g.strokeCircle(0, 0, this.radius);
 
-    const r = this.radius - 4;
-    g.lineStyle(3, 0x1b2434, 1);
+    const r = this.radius - 5;
+    g.lineStyle(4, 0x192334, 1);
     g.beginPath();
     g.arc(0, 0, r, -Math.PI / 2, Math.PI * 1.5, false);
     g.strokePath();
 
     if (ratio > 0.001) {
-      g.lineStyle(3, color, 1);
+      g.lineStyle(4, color, 1);
       g.beginPath();
       g.arc(0, 0, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ratio, false);
       g.strokePath();
