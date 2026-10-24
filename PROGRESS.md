@@ -208,3 +208,7 @@ client/src/
     - Rung lắc màn hình (screen shake): tăng mạnh độ rung camera theo combo, đòn đánh và hạ gục tướng.
     - Hiệu ứng chớp sáng (flash): chớp đỏ rực khi tướng trúng đòn/bị hạ gục, chớp vàng trắng khi combo/bom nổ, tia laser nối match ngọc sáng chói 3 lớp.
     - Đòn đánh và số nhảy: thẻ tướng giật lùi (recoil 10px), số nhảy damage/heal bung phóng to scale 1.6 đập xuống với viền tương phản cao.
+14. Nâng cấp hiệu ứng pick/ban, bụi tiên match ngọc và chuyển cảnh mượt mà:
+    - **Pick/Ban Punch & Pop**: Bổ sung hiệu ứng giật nảy recoil (`Back.easeOut`, scale 1.12) kèm vành hào quang và hạt tia lửa bung tỏa trên thẻ tướng được chọn (`DraftHeroCard.playPickRecoil`), đồng thời ô tướng side slot (`MiniHeroSlot.playPickPop`) nảy mạnh mẽ từ scale 0.62 lên 1.0 với hào quang mở rộng và camera mini-shake.
+    - **Chuyển cảnh mượt mà Draft -> Battle**: Loại bỏ hoàn toàn cú ngắt đột ngột; bổ sung `DraftScene.startMatchTransition()` với pháo hoa vàng, camera flash & shake, banner "⚔️ BẮT ĐẦU TRẬN ĐẤU ⚔️", fade out êm ái sang đen và fade in êm ái vào `BattleScene` kèm thông báo "VÒNG 1 · BẮT ĐẦU".
+    - **Hiệu ứng Bụi Tiên (Fairy Dust Swarm)**: Thay thế hoàn toàn quả cầu to thô kệch bằng chùm 5 hạt bụi tiên nhỏ (2.2px - 3.8px) lấp lánh kèm lõi trắng cho mỗi ô ngọc ăn điểm; hạt bay tản uốn lượn theo dải đường cong Bezier tự nhiên, rải bụi li ti dọc đường và bung mưa tia lửa nhẹ nhàng khi đáp xuống thẻ tướng/thanh mana.

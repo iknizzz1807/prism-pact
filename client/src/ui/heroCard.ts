@@ -214,10 +214,98 @@ export class DraftHeroCard extends Phaser.GameObjects.Container {
       ),
     );
   }
+
+  /** Hiệu ứng recoil bật nảy ease-in ease-out cực mạnh khi tướng được pick. */
+  playPickRecoil(isEnemy = false): void {
+    const color = isEnemy ? COLORS.enemy : COLORS.accent;
+
+    // Giật nảy scale mạnh với Back.easeOut (punch & recoil)
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: 1.12,
+      scaleY: 1.12,
+      duration: 160,
+      ease: 'Back.easeOut',
+      yoyo: true,
+    });
+
+    // Tag text nổi lên báo hiệu lượt chọn
+    const banner = label(
+      this.scene,
+      this.x,
+      this.y - 12,
+      isEnemy ? '⚔️ ĐỐI THỦ CHỌN' : '✓ BẠN ĐÃ CHỌN',
+      13,
+      color,
+      'bold',
+    )
+      .setOrigin(0.5)
+      .setDepth(60)
+      .setStroke('#030712', 4)
+      .setScale(0.65)
+      .setAlpha(0);
+
+    this.scene.tweens.add({
+      targets: banner,
+      y: this.y - 58,
+      scale: 1.1,
+      alpha: 1,
+      duration: 180,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.scene.tweens.add({
+          targets: banner,
+          alpha: 0,
+          y: this.y - 78,
+          duration: 260,
+          ease: 'Quad.easeIn',
+          onComplete: () => banner.destroy(),
+        });
+      },
+    });
+
+    // Vành hào quang bung rộng tỏa ra từ thẻ
+    const wave = this.scene.add.graphics().setDepth(55);
+    wave.setPosition(this.x, this.y);
+    wave.lineStyle(3, color, 0.95);
+    wave.strokeRoundedRect(-this.boxW / 2 - 2, -this.boxH / 2 - 2, this.boxW + 4, this.boxH + 4, 14);
+    this.scene.tweens.add({
+      targets: wave,
+      scaleX: 1.18,
+      scaleY: 1.25,
+      alpha: 0,
+      duration: 360,
+      ease: 'Quad.easeOut',
+      onComplete: () => wave.destroy(),
+    });
+
+    // Các hạt tia sáng bung ra xung quanh
+    for (let s = 0; s < 8; s += 1) {
+      const angle = (s / 8) * Math.PI * 2;
+      const dist = Phaser.Math.Between(26, 52);
+      const spark = this.scene.add
+        .circle(this.x, this.y, Phaser.Math.FloatBetween(2, 3.8), color, 1)
+        .setDepth(56);
+      this.scene.tweens.add({
+        targets: spark,
+        x: this.x + Math.cos(angle) * dist,
+        y: this.y + Math.sin(angle) * dist,
+        alpha: 0,
+        scale: 0.1,
+        duration: 320,
+        ease: 'Quad.easeOut',
+        onComplete: () => spark.destroy(),
+      });
+    }
+  }
 }
 
 /** Ô tướng trong hàng pick của 2 bên. */
 export class MiniHeroSlot extends Phaser.GameObjects.Container {
+  readonly slotWidth: number;
+  readonly slotHeight: number;
+  readonly archetype: Archetype | null;
+
   constructor(
     scene: Phaser.Scene,
     x: number,
@@ -252,6 +340,58 @@ export class MiniHeroSlot extends Phaser.GameObjects.Container {
     }
 
     super(scene, x, y, parts);
+    this.slotWidth = width;
+    this.slotHeight = height;
+    this.archetype = archetype;
+    this.setSize(width, height);
+  }
+
+  /** Hiệu ứng pop-in ease-in ease-out cực mạnh khi có tướng mới được chọn vào slot. */
+  playPickPop(accentColor: number = COLORS.accent): void {
+    this.setScale(0.62);
+    this.setAlpha(0.5);
+    this.scene.tweens.add({
+      targets: this,
+      scaleX: 1,
+      scaleY: 1,
+      alpha: 1,
+      duration: 320,
+      ease: 'Back.easeOut',
+    });
+
+    // Vành hào quang phóng to quanh ô slot
+    const ring = this.scene.add.graphics().setDepth(20);
+    ring.setPosition(this.x, this.y);
+    ring.lineStyle(3, accentColor, 0.95);
+    ring.strokeRoundedRect(-this.slotWidth / 2, -this.slotHeight / 2, this.slotWidth, this.slotHeight, 10);
+    this.scene.tweens.add({
+      targets: ring,
+      scaleX: 1.15,
+      scaleY: 1.25,
+      alpha: 0,
+      duration: 360,
+      ease: 'Quad.easeOut',
+      onComplete: () => ring.destroy(),
+    });
+
+    // 8 hạt tia sáng bung ra xung quanh ô tướng
+    for (let i = 0; i < 8; i += 1) {
+      const angle = (i / 8) * Math.PI * 2;
+      const dist = Phaser.Math.Between(22, 44);
+      const spark = this.scene.add
+        .circle(this.x, this.y, Phaser.Math.FloatBetween(2, 3.5), accentColor, 1)
+        .setDepth(21);
+      this.scene.tweens.add({
+        targets: spark,
+        x: this.x + Math.cos(angle) * dist,
+        y: this.y + Math.sin(angle) * dist,
+        alpha: 0,
+        scale: 0.1,
+        duration: 320,
+        ease: 'Quad.easeOut',
+        onComplete: () => spark.destroy(),
+      });
+    }
   }
 }
 

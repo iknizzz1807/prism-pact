@@ -37,6 +37,7 @@ export class DraftScene extends Phaser.Scene {
   private pending: 'pick' | 'ban' | null = null;
   private entered = false;
   private lastTurnKey = '';
+  private prevPicks: { you: Archetype[]; enemy: Archetype[] } = { you: [], enemy: [] };
 
   private readonly unsubs: Array<() => void> = [];
 
@@ -163,8 +164,23 @@ export class DraftScene extends Phaser.Scene {
     this.enemyTitle.setText(`ĐỘI ĐỊCH · ${draft.picks[opponent].length}/4`);
     this.ownTitle.setText(`ĐỘI BẠN · ${draft.picks[you].length}/4`);
 
-    this.renderPickSlots(this.yourChips, draft.picks[you], 4, COLORS.accent, 168);
-    this.renderPickSlots(this.enemyChips, draft.picks[opponent], 4, COLORS.enemy, 1112);
+    const oldYouPicks = [...this.prevPicks.you];
+    const oldEnemyPicks = [...this.prevPicks.enemy];
+    const currentYouPicks = [...draft.picks[you]];
+    const currentEnemyPicks = [...draft.picks[opponent]];
+
+    const newYouPicks = currentYouPicks.filter((p) => !oldYouPicks.includes(p));
+    const newEnemyPicks = currentEnemyPicks.filter((p) => !oldEnemyPicks.includes(p));
+
+    this.prevPicks = { you: currentYouPicks, enemy: currentEnemyPicks };
+
+    // Rung nhẹ camera khi có lượt pick mới
+    if (newYouPicks.length > 0 || newEnemyPicks.length > 0) {
+      this.cameras.main.shake(140, 0.005);
+    }
+
+    this.renderPickSlots(this.yourChips, draft.picks[you], 4, COLORS.accent, 168, newYouPicks);
+    this.renderPickSlots(this.enemyChips, draft.picks[opponent], 4, COLORS.enemy, 1112, newEnemyPicks);
 
     this.ownBanText.setText(
       draft.yourBan ? `Đã ban: ${draft.yourBan}` : draft.phase === 'ban' ? 'Chưa chọn ban' : '',
@@ -172,7 +188,7 @@ export class DraftScene extends Phaser.Scene {
     this.ownBanText.setColor(hex(draft.yourBan ? COLORS.danger : COLORS.dim));
 
     if (draft.phase === 'ban') this.renderBanCards(draft, opponent);
-    else this.renderRoster(draft, you, opponent);
+    else this.renderRoster(draft, you, opponent, newYouPicks, newEnemyPicks);
 
     this.renderLog();
     this.renderInfo(draft, you, opponent);
@@ -216,16 +232,29 @@ export class DraftScene extends Phaser.Scene {
     slots: number,
     accent: number,
     centerX: number,
+    newPicks: readonly Archetype[] = [],
   ): void {
     layer.removeAll(true);
     for (let i = 0; i < slots; i += 1) {
       const y = 168 + i * 74;
-      const chip = new MiniHeroSlot(this, centerX, y, 256, 62, picks[i] ?? null, accent);
+      const archetype = picks[i] ?? null;
+      const chip = new MiniHeroSlot(this, centerX, y, 256, 62, archetype, accent);
       layer.add(chip);
+
+      // Nếu slot này vừa nhận tướng mới -> hiệu ứng nảy pop-in ease-in ease-out mạnh mẽ
+      if (archetype && newPicks.includes(archetype)) {
+        chip.playPickPop(accent);
+      }
     }
   }
 
-  private renderRoster(draft: DraftView, you: Side, opponent: Side): void {
+  private renderRoster(
+    draft: DraftView,
+    you: Side,
+    opponent: Side,
+    newYouPicks: readonly Archetype[] = [],
+    newEnemyPicks: readonly Archetype[] = [],
+  ): void {
     this.rosterLayer.removeAll(true);
     const yourTurn = draft.phase === 'pick' && draft.turn === you && draft.picksLeftThisTurn > 0;
 
@@ -271,6 +300,13 @@ export class DraftScene extends Phaser.Scene {
       card.setCardState(state, note);
       card.setHighlight(state === 'available' && yourTurn);
       this.rosterLayer.add(card);
+
+      // Kích hoạt hiệu ứng giật nảy punch & recoil khi tướng được pick bởi người chơi hoặc đối thủ
+      if (newYouPicks.includes(archetype)) {
+        card.playPickRecoil(false);
+      } else if (newEnemyPicks.includes(archetype)) {
+        card.playPickRecoil(true);
+      }
 
       if (!this.entered) {
         card.setAlpha(0);
@@ -600,5 +636,84 @@ export class DraftScene extends Phaser.Scene {
     gameClient.leaveMatch();
     matchStore.clear();
     matchStore.pushEvent('Đã rời trận draft.');
+  }
+
+  /**
+   * Chuyển cảnh mượt mà: Báo hiệu bắt đầu trận đấu với pháo hoa, flash, rung lắc & fade mượt trước khi sang Battle.
+   */
+  startMatchTransition(onComplete: () => void): void {
+    if (this.disposed) {
+      onComplete();
+      return;
+    }
+
+    // Khóa tương tác
+    this.rosterLayer.setAlpha(0.3);
+    this.closeModal();
+
+    // Lớp scrim đen mờ
+    const scrim = this.add.graphics().setDepth(90);
+    scrim.fillStyle(COLORS.black, 0.78);
+    scrim.fillRect(0, 0, 1280, 720);
+    scrim.setAlpha(0);
+    this.tweens.add({ targets: scrim, alpha: 1, duration: 220, ease: 'Quad.easeOut' });
+
+    // Flash & Rung lắc kích thích
+    this.cameras.main.flash(220, 255, 235, 180, false);
+    this.cameras.main.shake(320, 0.012);
+
+    // Chùm tia pháo hoa vàng rực rỡ bùng tỏa từ trung tâm
+    for (let i = 0; i < 32; i += 1) {
+      const angle = (i / 32) * Math.PI * 2 + Phaser.Math.FloatBetween(-0.08, 0.08);
+      const dist = Phaser.Math.Between(80, 320);
+      const spark = this.add
+        .circle(640, 360, Phaser.Math.FloatBetween(2.6, 5.2), COLORS.gold, 1)
+        .setDepth(95);
+      this.tweens.add({
+        targets: spark,
+        x: 640 + Math.cos(angle) * dist,
+        y: 360 + Math.sin(angle) * dist,
+        alpha: 0,
+        scale: 0.1,
+        duration: Phaser.Math.Between(450, 700),
+        ease: 'Cubic.easeOut',
+        onComplete: () => spark.destroy(),
+      });
+    }
+
+    // Banner chữ hoành tráng
+    const banner = this.add.container(640, 360).setDepth(100).setScale(0.35).setAlpha(0);
+    const title = label(this, 0, -22, '⚔️ BẮT ĐẦU TRẬN ĐẤU ⚔️', 44, COLORS.gold, 'bold')
+      .setOrigin(0.5)
+      .setStroke('#030712', 8)
+      .setShadow(0, 0, '#fbbf24', 36, true, true);
+
+    const sub = label(this, 0, 32, 'CHUYỂN VÀO ĐẤU TRƯỜNG MATCH-3 · VÒNG 1', 16, COLORS.accent, 'bold')
+      .setOrigin(0.5)
+      .setLetterSpacing(1.6)
+      .setStroke('#030712', 4);
+
+    banner.add([title, sub]);
+
+    this.tweens.add({
+      targets: banner,
+      scaleX: 1,
+      scaleY: 1,
+      alpha: 1,
+      duration: 300,
+      ease: 'Back.easeOut',
+    });
+
+    // Sau khi hiển thị ấn tượng 720ms, fade out màn hình mượt mà
+    this.time.delayedCall(720, () => {
+      if (this.disposed) {
+        onComplete();
+        return;
+      }
+      this.cameras.main.fadeOut(380, 4, 6, 12);
+      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+        onComplete();
+      });
+    });
   }
 }

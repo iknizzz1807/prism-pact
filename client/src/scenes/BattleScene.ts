@@ -85,6 +85,7 @@ export class BattleScene extends Phaser.Scene {
   private resultOverlay: Phaser.GameObjects.Container | null = null;
   private exitArmed = false;
   private toastText: Phaser.GameObjects.Text | null = null;
+  private entered = false;
   private disposed = false;
 
   private readonly unsubs: Array<() => void> = [];
@@ -94,7 +95,7 @@ export class BattleScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.cameras.main.fadeIn(220, 4, 6, 12);
+    this.cameras.main.fadeIn(360, 4, 6, 12);
     drawBackdrop(this);
     this.drawLayoutPanels();
     this.drawManaBars();
@@ -632,88 +633,137 @@ export class BattleScene extends Phaser.Scene {
     this.flyOrbs(byType.MANA, COLORS.mana, () => manaPos);
   }
 
+  /**
+   * Hiệu ứng bụi tiên (fairy dust stream) bay về card hoặc thanh mana:
+   * Không dùng quả cầu to đùng, mà là chùm hạt bụi nhỏ (2.2px - 3.8px) dày đặc lấp lánh,
+   * uốn lượn theo đường cong bezier mềm mại và rải bụi li ti trên đường bay.
+   */
   private flyOrbs(
     cells: number[],
     color: number,
     dest: (index: number) => { x: number; y: number } | null,
   ): void {
+    if (cells.length === 0) return;
     const limit = Math.min(cells.length, 10);
+    const MOTES_PER_CELL = 5;
+
     for (let i = 0; i < limit; i += 1) {
       const cell = cells[i]!;
       const to = dest(i);
       if (!to) continue;
 
-      const startX = this.cellX(cell);
-      const startY = this.cellY(cell);
+      const originX = this.cellX(cell);
+      const originY = this.cellY(cell);
 
-      // Điểm uốn cong quỹ đạo đường đạn
-      const midX = (startX + to.x) / 2 + Phaser.Math.Between(-35, 35);
-      const midY = Math.min(startY, to.y) - Phaser.Math.Between(35, 75);
+      for (let m = 0; m < MOTES_PER_CELL; m += 1) {
+        // Tản hạt tự nhiên quanh tâm ô ngọc vừa nổ
+        const startX = originX + Phaser.Math.Between(-8, 8);
+        const startY = originY + Phaser.Math.Between(-8, 8);
 
-      // Đầu đạn phát sáng rực rỡ (vầng hào quang + lõi trắng chói)
-      const glow = this.add.circle(startX, startY, 11, color, 0.55).setDepth(31);
-      const core = this.add.circle(startX, startY, 5.5, 0xffffff, 1).setDepth(32);
+        // Quỹ đạo cong bezier uốn lượn riêng biệt tạo thành luồng bụi tiên dày
+        const midX = (startX + to.x) / 2 + Phaser.Math.Between(-45, 45);
+        const midY = Math.min(startY, to.y) - Phaser.Math.Between(30, 85);
+        const endX = to.x + Phaser.Math.Between(-10, 10);
+        const endY = to.y + Phaser.Math.Between(-10, 10);
 
-      const delayMs = i * 40;
-      const duration = 380;
+        // Hạt bụi tiên nhỏ (2.2px - 3.8px) phát sáng màu đặc trưng
+        const radius = Phaser.Math.FloatBetween(2.2, 3.8);
+        const mote = this.add
+          .circle(startX, startY, radius, color, Phaser.Math.FloatBetween(0.85, 1))
+          .setDepth(31);
 
-      const tracker = { t: 0 };
-      this.tweens.add({
-        targets: tracker,
-        t: 1,
-        delay: delayMs,
-        duration,
-        ease: 'Cubic.easeIn',
-        onUpdate: () => {
-          const t = tracker.t;
-          const currX = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * midX + t * t * to.x;
-          const currY = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * midY + t * t * to.y;
-          glow.setPosition(currX, currY);
-          core.setPosition(currX, currY);
+        // Lõi trắng lấp lánh nhỏ trên các hạt lẻ
+        const core =
+          m % 2 === 0
+            ? this.add.circle(startX, startY, radius * 0.45, 0xffffff, 0.95).setDepth(32)
+            : null;
 
-          // Tạo đuôi bụi tia lửa lấp lánh (sparkle dust trail) theo sau đường đạn
-          if (Math.random() < 0.65) {
-            const spark = this.add
-              .circle(
-                currX + Phaser.Math.Between(-4, 4),
-                currY + Phaser.Math.Between(-4, 4),
-                Phaser.Math.Between(2.5, 5),
-                color,
-                0.9,
-              )
-              .setDepth(30);
-            this.tweens.add({
-              targets: spark,
-              scale: 0.1,
-              alpha: 0,
-              duration: 220,
-              ease: 'Quad.easeOut',
-              onComplete: () => spark.destroy(),
-            });
-          }
-        },
-        onComplete: () => {
-          glow.destroy();
-          core.destroy();
+        const delayMs = i * 26 + m * 16;
+        const duration = Phaser.Math.Between(340, 420);
+        const tracker = { t: 0 };
 
-          // Vụ nổ va chạm bung bụi tia lửa cực mạnh tại mục tiêu
-          this.burst(to.x, to.y, color, 12);
-          const impactRing = this.add.circle(to.x, to.y, 14).setStrokeStyle(4, color, 1).setDepth(33);
-          this.tweens.add({
-            targets: impactRing,
-            scale: 2.8,
-            alpha: 0,
-            duration: 240,
-            ease: 'Quad.easeOut',
-            onComplete: () => impactRing.destroy(),
-          });
+        this.tweens.add({
+          targets: tracker,
+          t: 1,
+          delay: delayMs,
+          duration,
+          ease: 'Cubic.easeIn',
+          onUpdate: () => {
+            const t = tracker.t;
+            const currX = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * midX + t * t * endX;
+            const currY = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * midY + t * t * endY;
+            mote.setPosition(currX, currY);
+            if (core) core.setPosition(currX, currY);
 
-          // Rung màn hình khi đòn đánh thường đáp xuống tướng địch
-          if (color === COLORS.atk) {
-            this.cameras.main.shake(120, 0.008);
-          }
-        },
-      });
+            // Bụi li ti lấp lánh rơi rải rác dọc theo dòng chảy
+            if (Math.random() < 0.45) {
+              const trail = this.add
+                .circle(
+                  currX + Phaser.Math.FloatBetween(-3, 3),
+                  currY + Phaser.Math.FloatBetween(-3, 3),
+                  Phaser.Math.FloatBetween(1.2, 2.2),
+                  color,
+                  0.75,
+                )
+                .setDepth(30);
+              this.tweens.add({
+                targets: trail,
+                alpha: 0,
+                scale: 0.2,
+                duration: 160,
+                ease: 'Quad.easeOut',
+                onComplete: () => trail.destroy(),
+              });
+            }
+          },
+          onComplete: () => {
+            mote.destroy();
+            if (core) core.destroy();
+
+            // Rắc tia lửa bụi tiên li ti khi chạm đích
+            const sparkCount = Phaser.Math.Between(2, 4);
+            for (let s = 0; s < sparkCount; s += 1) {
+              const angle = Math.random() * Math.PI * 2;
+              const dist = Phaser.Math.Between(6, 18);
+              const spark = this.add
+                .circle(
+                  endX,
+                  endY,
+                  Phaser.Math.FloatBetween(1.5, 2.6),
+                  s === 0 ? 0xffffff : color,
+                  0.9,
+                )
+                .setDepth(33);
+              this.tweens.add({
+                targets: spark,
+                x: endX + Math.cos(angle) * dist,
+                y: endY + Math.sin(angle) * dist,
+                alpha: 0,
+                scale: 0.1,
+                duration: 200,
+                ease: 'Quad.easeOut',
+                onComplete: () => spark.destroy(),
+              });
+            }
+
+            // Hạt cuối cùng trong cụm chạm đích -> gợn sóng hấp thụ và rung nhẹ
+            if (m === MOTES_PER_CELL - 1) {
+              const pulse = this.add.circle(to.x, to.y, 8).setStrokeStyle(2.5, color, 0.85).setDepth(32);
+              this.tweens.add({
+                targets: pulse,
+                scale: 2.2,
+                alpha: 0,
+                duration: 220,
+                ease: 'Quad.easeOut',
+                onComplete: () => pulse.destroy(),
+              });
+              if (color === COLORS.atk) {
+                this.cameras.main.shake(90, 0.005);
+              }
+            }
+          },
+        });
+      }
     }
   }
 
@@ -927,7 +977,15 @@ export class BattleScene extends Phaser.Scene {
     this.renderTurnPill(yourTurn, battle.suddenDeath);
     this.skillLayer.setAlpha(yourTurn ? 1 : 0.55);
 
-    if (turnChanged) {
+    if (!this.entered) {
+      this.entered = true;
+      showTurnNotice(
+        this,
+        360,
+        yourTurn ? 'VÒNG 1 · BẮT ĐẦU — LƯỢT CỦA BẠN' : 'VÒNG 1 · BẮT ĐẦU — LƯỢT ĐỐI THỦ',
+        yourTurn ? COLORS.accent : COLORS.enemy,
+      );
+    } else if (turnChanged) {
       showTurnNotice(
         this,
         360,

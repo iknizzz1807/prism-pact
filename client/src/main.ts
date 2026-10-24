@@ -14,12 +14,29 @@ const SCENES = ['Boot', 'Lobby', 'Draft', 'Battle'] as const;
 const inMatch = (phase: string): boolean => phase === 'draft' || phase === 'ban';
 
 let game: Phaser.Game | null = null;
+let isTransitioning = false;
 
 function route(): void {
-  if (!game) return;
+  if (!game || isTransitioning) return;
   const view = matchStore.view;
   const target = !view ? 'Lobby' : inMatch(view.phase) ? 'Draft' : 'Battle';
   if (game.scene.isActive(target)) return;
+
+  // Nếu chuyển từ Draft sang Battle, kích hoạt diễn hoạt cảnh chuyển trận mượt mà
+  if (target === 'Battle' && game.scene.isActive('Draft')) {
+    const draftScene = game.scene.getScene('Draft') as DraftScene | undefined;
+    if (draftScene && typeof draftScene.startMatchTransition === 'function') {
+      isTransitioning = true;
+      draftScene.startMatchTransition(() => {
+        isTransitioning = false;
+        if (!game) return;
+        game.scene.stop('Draft');
+        game.scene.start('Battle');
+      });
+      return;
+    }
+  }
+
   for (const key of SCENES) {
     if (key !== target && game.scene.isActive(key)) game.scene.stop(key);
   }
