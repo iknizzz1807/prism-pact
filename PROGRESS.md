@@ -203,3 +203,8 @@ client/src/
     - Đặt vị trí Y của nội tại nối tiếp ngay sau chiêu thức (`top + 65 + descText.height + 4`), loại bỏ hoàn toàn `Math.max` neo đáy khiến dòng thứ 2 của Debuffer chạm viền dưới.
     - Mở rộng kích thước thẻ lên 304×130px với lề chữ 12px (bề rộng hiển thị 280px), tăng khoảng đệm đáy an toàn lên 18-20px cho mọi archetype.
 12. Bỏ thông báo toast chữ màu vàng "Đang chọn <tướng>…" khi người chơi vừa xác nhận chọn xong; giữ nguyên banner thông báo lượt (turn notice) cho cả hai bên.
+13. Tăng cường toàn diện hiệu ứng chiến đấu (Juice & Impact):
+    - Đạn tiến công & bay stat: đầu đạn comet phát sáng rực rỡ bay theo đường cong uốn lượn, xả đuôi bụi tia lửa lấp lánh và kích nổ bung hạt va chạm + sóng xung kích khi trúng tướng/mana.
+    - Rung lắc màn hình (screen shake): tăng mạnh độ rung camera theo combo, đòn đánh và hạ gục tướng.
+    - Hiệu ứng chớp sáng (flash): chớp đỏ rực khi tướng trúng đòn/bị hạ gục, chớp vàng trắng khi combo/bom nổ, tia laser nối match ngọc sáng chói 3 lớp.
+    - Đòn đánh và số nhảy: thẻ tướng giật lùi (recoil 10px), số nhảy damage/heal bung phóng to scale 1.6 đập xuống với viền tương phản cao.

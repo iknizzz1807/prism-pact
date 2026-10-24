@@ -442,7 +442,6 @@ export class BattleScene extends Phaser.Scene {
     const bombs = wave.cleared.filter((cell) => this.gems[cell]?.special === 'BOMB');
     if (bombs.length > 0) {
       this.bombFlash(bombs);
-      this.cameras.main.shake(180, 0.006);
     }
 
     const before = this.gems.map((slot) => ({ type: slot.type, special: slot.special }));
@@ -568,21 +567,32 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private showCombo(combo: number): void {
-    const text = label(this, 640, 360, `COMBO ×${combo}`, 34, COLORS.gold, 'bold')
+    // Rung lắc màn hình & chớp sáng tăng theo combo
+    const shakePower = Math.min(0.008 + combo * 0.004, 0.026);
+    this.cameras.main.shake(160 + combo * 30, shakePower);
+    if (combo >= 2) {
+      this.cameras.main.flash(110, 255, 230, 160, false);
+    }
+
+    const fontSize = Math.min(36 + combo * 4, 54);
+    const text = label(this, 640, 360, `COMBO ×${combo}`, fontSize, COLORS.gold, 'bold')
       .setOrigin(0.5)
       .setDepth(55)
-      .setShadow(0, 4, '#000000', 12, true, true)
-      .setScale(0.6)
+      .setStroke('#030712', 6)
+      .setShadow(0, 0, '#fbbf24', 28, true, true)
+      .setScale(0.3)
       .setAlpha(0);
+
+    this.burst(640, 360, COLORS.gold, 18);
 
     this.tweens.add({
       targets: text,
-      scale: 1.1,
+      scale: 1.35,
       alpha: 1,
-      duration: 150,
+      duration: 160,
       ease: 'Back.easeOut',
       yoyo: true,
-      hold: 400,
+      hold: 420,
       onComplete: () => text.destroy(),
     });
   }
@@ -627,23 +637,82 @@ export class BattleScene extends Phaser.Scene {
     color: number,
     dest: (index: number) => { x: number; y: number } | null,
   ): void {
-    const limit = Math.min(cells.length, 6);
+    const limit = Math.min(cells.length, 10);
     for (let i = 0; i < limit; i += 1) {
       const cell = cells[i]!;
       const to = dest(i);
       if (!to) continue;
 
-      const orb = this.add.circle(this.cellX(cell), this.cellY(cell), 4.5, color, 0.95).setDepth(30);
+      const startX = this.cellX(cell);
+      const startY = this.cellY(cell);
+
+      // Điểm uốn cong quỹ đạo đường đạn
+      const midX = (startX + to.x) / 2 + Phaser.Math.Between(-35, 35);
+      const midY = Math.min(startY, to.y) - Phaser.Math.Between(35, 75);
+
+      // Đầu đạn phát sáng rực rỡ (vầng hào quang + lõi trắng chói)
+      const glow = this.add.circle(startX, startY, 11, color, 0.55).setDepth(31);
+      const core = this.add.circle(startX, startY, 5.5, 0xffffff, 1).setDepth(32);
+
+      const delayMs = i * 40;
+      const duration = 380;
+
+      const tracker = { t: 0 };
       this.tweens.add({
-        targets: orb,
-        x: to.x,
-        y: to.y,
-        scale: 0.45,
-        alpha: 0,
-        delay: i * 40,
-        duration: 380,
-        ease: 'Quad.easeIn',
-        onComplete: () => orb.destroy(),
+        targets: tracker,
+        t: 1,
+        delay: delayMs,
+        duration,
+        ease: 'Cubic.easeIn',
+        onUpdate: () => {
+          const t = tracker.t;
+          const currX = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * midX + t * t * to.x;
+          const currY = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * midY + t * t * to.y;
+          glow.setPosition(currX, currY);
+          core.setPosition(currX, currY);
+
+          // Tạo đuôi bụi tia lửa lấp lánh (sparkle dust trail) theo sau đường đạn
+          if (Math.random() < 0.65) {
+            const spark = this.add
+              .circle(
+                currX + Phaser.Math.Between(-4, 4),
+                currY + Phaser.Math.Between(-4, 4),
+                Phaser.Math.Between(2.5, 5),
+                color,
+                0.9,
+              )
+              .setDepth(30);
+            this.tweens.add({
+              targets: spark,
+              scale: 0.1,
+              alpha: 0,
+              duration: 220,
+              ease: 'Quad.easeOut',
+              onComplete: () => spark.destroy(),
+            });
+          }
+        },
+        onComplete: () => {
+          glow.destroy();
+          core.destroy();
+
+          // Vụ nổ va chạm bung bụi tia lửa cực mạnh tại mục tiêu
+          this.burst(to.x, to.y, color, 12);
+          const impactRing = this.add.circle(to.x, to.y, 14).setStrokeStyle(4, color, 1).setDepth(33);
+          this.tweens.add({
+            targets: impactRing,
+            scale: 2.8,
+            alpha: 0,
+            duration: 240,
+            ease: 'Quad.easeOut',
+            onComplete: () => impactRing.destroy(),
+          });
+
+          // Rung màn hình khi đòn đánh thường đáp xuống tướng địch
+          if (color === COLORS.atk) {
+            this.cameras.main.shake(120, 0.008);
+          }
+        },
       });
     }
   }
@@ -652,28 +721,49 @@ export class BattleScene extends Phaser.Scene {
     const card = [...this.enemyCards, ...this.ownCards].find((item) => item.uid === uid);
     if (!card) return;
 
-    const rect = this.add
-      .rectangle(card.x, card.y, card.widthValue, card.heightValue, COLORS.danger, 0.35)
-      .setDepth(28);
+    // Flash cường độ cao: phủ trắng chớp nhanh + viền đỏ rực rỡ
+    const flashGfx = this.add.graphics().setDepth(29);
+    flashGfx.fillStyle(0xffffff, 0.85);
+    flashGfx.fillRoundedRect(card.x - card.widthValue / 2, card.y - card.heightValue / 2, card.widthValue, card.heightValue, 12);
+    flashGfx.lineStyle(4, COLORS.danger, 1);
+    flashGfx.strokeRoundedRect(card.x - card.widthValue / 2 - 2, card.y - card.heightValue / 2 - 2, card.widthValue + 4, card.heightValue + 4, 14);
 
     this.tweens.add({
-      targets: rect,
+      targets: flashGfx,
       alpha: 0,
-      duration: 280,
+      duration: 180,
       ease: 'Quad.easeOut',
-      onComplete: () => rect.destroy(),
+      onComplete: () => flashGfx.destroy(),
     });
   }
 
   private bombFlash(cells: number[]): void {
+    // Chớp toàn màn hình và giật mạnh khi bom nổ
+    this.cameras.main.flash(140, 255, 230, 160, false);
+    this.cameras.main.shake(250, 0.018);
+
     for (const cell of cells) {
+      const cx = this.cellX(cell);
+      const cy = this.cellY(cell);
+      this.burst(cx, cy, COLORS.gold, 22);
+
+      const coreFlash = this.add.circle(cx, cy, 32, 0xffffff, 0.95).setDepth(27);
+      this.tweens.add({
+        targets: coreFlash,
+        scale: 2.8,
+        alpha: 0,
+        duration: 260,
+        ease: 'Quad.easeOut',
+        onComplete: () => coreFlash.destroy(),
+      });
+
       const ring = this.add
-        .circle(this.cellX(cell), this.cellY(cell), 22)
-        .setStrokeStyle(5, COLORS.gold, 0.95)
-        .setDepth(26);
+        .circle(cx, cy, 26)
+        .setStrokeStyle(6, COLORS.gold, 1)
+        .setDepth(28);
       this.tweens.add({
         targets: ring,
-        scale: 3.5,
+        scale: 4.8,
         alpha: 0,
         duration: 380,
         ease: 'Quad.easeOut',
@@ -686,34 +776,59 @@ export class BattleScene extends Phaser.Scene {
     const slot = this.gems[index];
     if (!slot) return Promise.resolve();
 
-    if (slot.type) this.burst(this.cellX(index), this.cellY(index), this.gemColor(slot.type));
+    const cx = this.cellX(index);
+    const cy = this.cellY(index);
 
+    if (slot.type) {
+      this.burst(cx, cy, this.gemColor(slot.type), 14);
+      // Sóng xung kích bung tròn tại vị trí ngọc nổ
+      const popRing = this.add.circle(cx, cy, 10).setStrokeStyle(3.5, this.gemColor(slot.type), 0.95).setDepth(26);
+      this.tweens.add({
+        targets: popRing,
+        scale: 2.8,
+        alpha: 0,
+        duration: 220,
+        ease: 'Quad.easeOut',
+        onComplete: () => popRing.destroy(),
+      });
+    }
+
+    // Nảy to lên rồi co vụn xoay biến mất
     return this.tweenAsync({
       targets: slot.container,
-      scale: 0.12,
-      alpha: 0,
-      angle: Phaser.Math.Between(-24, 24),
-      duration: 200,
-      ease: 'Quad.easeIn',
-    }).then(() => {
+      scale: 1.25,
+      duration: 50,
+      ease: 'Quad.easeOut',
+    }).then(() =>
+      this.tweenAsync({
+        targets: slot.container,
+        scale: 0.08,
+        alpha: 0,
+        angle: Phaser.Math.Between(-35, 35),
+        duration: 160,
+        ease: 'Cubic.easeIn',
+      }),
+    ).then(() => {
       slot.container.setScale(1).setAlpha(1).setAngle(0);
       this.clearGem(slot);
     });
   }
 
-  private burst(x: number, y: number, color: number): void {
-    for (let i = 0; i < 5; i += 1) {
+  private burst(x: number, y: number, color: number, count = 14): void {
+    for (let i = 0; i < count; i += 1) {
       const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
-      const distance = Phaser.Math.Between(14, 34);
-      const dot = this.add.circle(x, y, Phaser.Math.Between(3, 5), color, 0.95).setDepth(25);
+      const distance = Phaser.Math.Between(22, 56);
+      const r = Phaser.Math.Between(3, 6.5);
+      const dotColor = i % 3 === 0 ? 0xffffff : color;
+      const dot = this.add.circle(x, y, r, dotColor, 1).setDepth(27);
       this.tweens.add({
         targets: dot,
         x: x + Math.cos(angle) * distance,
         y: y + Math.sin(angle) * distance,
         alpha: 0,
-        scale: 0.2,
-        duration: 340,
-        ease: 'Quad.easeOut',
+        scale: 0.15,
+        duration: Phaser.Math.Between(320, 500),
+        ease: 'Cubic.easeOut',
         onComplete: () => dot.destroy(),
       });
     }
@@ -758,8 +873,17 @@ export class BattleScene extends Phaser.Scene {
         g.strokePath();
       };
 
-      path(16, 0.25);
-      path(7, 0.9);
+      path(26, 0.45);
+      path(12, 0.85);
+      g.lineStyle(4, 0xffffff, 1);
+      g.beginPath();
+      const first = run.cells[0]!;
+      g.moveTo(this.cellX(first), this.cellY(first));
+      for (let i = 1; i < run.cells.length; i += 1) {
+        const index = run.cells[i]!;
+        g.lineTo(this.cellX(index), this.cellY(index));
+      }
+      g.strokePath();
     }
   }
 
@@ -864,13 +988,21 @@ export class BattleScene extends Phaser.Scene {
           this.floatingOnHero(hero.uid, `-${Math.round(-hpDelta)}`, COLORS.danger);
           this.shakeCard(hero.uid);
           this.flashCard(hero.uid);
+          // Rung lắc màn hình theo mức độ sát thương
+          const shakePower = Math.min(0.008 + Math.abs(hpDelta) / 3000, 0.020);
+          this.cameras.main.shake(160, shakePower);
         } else if (hpDelta > 0.5) {
           this.floatingOnHero(hero.uid, `+${Math.round(hpDelta)}`, COLORS.success);
         }
 
         const shieldDelta = hero.shield - previous.shield;
         if (shieldDelta > 0.5) this.floatingOnHero(hero.uid, `+${Math.round(shieldDelta)} giáp`, COLORS.shield);
-        if (previous.alive && !hero.alive) this.floatingOnHero(hero.uid, 'HẠ GỤC', COLORS.danger, 15);
+        if (previous.alive && !hero.alive) {
+          this.floatingOnHero(hero.uid, '☠ HẠ GỤC', COLORS.danger, 26);
+          // Rung giật cực mạnh & chớp đỏ khi hạ gục một tướng
+          this.cameras.main.shake(260, 0.022);
+          this.cameras.main.flash(140, 248, 113, 113, false);
+        }
       }
       next.set(hero.uid, { hp: hero.hp, shield: hero.shield, alive: hero.alive });
     }
@@ -882,17 +1014,22 @@ export class BattleScene extends Phaser.Scene {
     const card = [...this.enemyCards, ...this.ownCards].find((item) => item.uid === uid);
     if (!card) return;
     const baseX = card.x;
+    const baseY = card.y;
     this.tweens.killTweensOf(card);
-    card.x = baseX - 5;
+    card.x = baseX - 10;
+    card.setScale(0.93);
     this.tweens.add({
       targets: card,
-      x: baseX + 5,
-      duration: 55,
+      x: baseX + 10,
+      scale: 1,
+      duration: 38,
       yoyo: true,
-      repeat: 2,
-      ease: 'Sine.easeInOut',
+      repeat: 3,
+      ease: 'Bounce.easeOut',
       onComplete: () => {
         card.x = baseX;
+        card.y = baseY;
+        card.setScale(1);
       },
     });
   }
@@ -900,19 +1037,33 @@ export class BattleScene extends Phaser.Scene {
   private floatingOnHero(uid: string, text: string, color: number, size = 18): void {
     const card = [...this.enemyCards, ...this.ownCards].find((item) => item.uid === uid);
     if (!card) return;
-    const x = card.x + Phaser.Math.Between(-20, 20);
-    const y = card.y + card.heightValue / 2 - 32;
-    const float = label(this, x, y, text, size, color, 'bold')
+    const x = card.x + Phaser.Math.Between(-24, 24);
+    const y = card.y + card.heightValue / 2 - 28;
+    const isBig = text.includes('HẠ GỤC') || text.length > 5;
+    const actualSize = isBig ? Math.max(size, 24) : Math.max(size, 20);
+
+    const float = label(this, x, y, text, actualSize, color, 'bold')
       .setOrigin(0.5)
-      .setDepth(40)
-      .setShadow(0, 2, '#000000', 6, true, true);
+      .setDepth(45)
+      .setStroke('#050811', 4)
+      .setShadow(0, 0, hex(color), 16, true, true)
+      .setScale(1.6);
+
     this.tweens.add({
       targets: float,
-      y: y - 40,
-      alpha: { from: 1, to: 0 },
-      duration: 950,
-      ease: 'Cubic.easeOut',
-      onComplete: () => float.destroy(),
+      scale: 1.0,
+      duration: 90,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: float,
+          y: y - 56,
+          alpha: { from: 1, to: 0 },
+          duration: 850,
+          ease: 'Cubic.easeOut',
+          onComplete: () => float.destroy(),
+        });
+      },
     });
   }
 
