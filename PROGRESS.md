@@ -218,3 +218,7 @@ client/src/
       - Cột Ally: hiển thị rõ ràng hộp đỏ `⚠️ ĐỐI THỦ ĐÃ CẤM: 🚫 [Tướng]` và danh sách 3 tướng vào trận của bạn.
       - Cột Enemy: hiển thị rõ ràng hộp đỏ `🎯 BẠN ĐÃ CẤM: 🚫 [Tướng]` và danh sách 3 tướng vào trận của đối thủ.
       - Các ô tướng bên cánh (`MiniHeroSlot`) lập tức được cập nhật viền đỏ, tên bị gạch ngang và nhãn `🚫 ĐỐI THỦ ĐÃ CẤM` / `🚫 BẠN ĐÃ CẤM`.
+16. Sửa triệt để lỗi đơ màn hình và che khuất nội dung trong Ban Reveal:
+    - **Sửa thứ tự hiển thị z-order**: Đưa `bg` vào `modal` đầu tiên thay vì cuối cùng, giúp toàn bộ nội dung chữ (Tên tướng cấm, Đội hình 3 tướng ra trận, tiêu đề) hiển thị rõ ràng trên nền panel mà không bị hình chữ nhật nền che lấp.
+    - **Khử lỗi kẹt chuyển cảnh (Scene Transition Hang)**: Thay thế việc chờ event camera `FADE_OUT_COMPLETE` (vốn bị nuốt hoặc đơ khi fade effect đang chạy) bằng tween alpha scrim/modal trực tiếp kết hợp timeout bảo hiểm tự động trong `DraftScene` và safety timer 3.5s trong `main.ts`.
+    - **Hỗ trợ click để vào ngay**: Cho phép người chơi nhấp chuột bất kỳ đâu trên màn hình để bỏ qua thời gian chờ 2.2s và vào thẳng trận đấu ngay lập tức.

@@ -27,11 +27,23 @@ function route(): void {
     const draftScene = game.scene.getScene('Draft') as DraftScene | undefined;
     if (draftScene && typeof draftScene.startMatchTransition === 'function') {
       isTransitioning = true;
-      draftScene.startMatchTransition(view, () => {
+      let transitionDone = false;
+
+      const finishTransition = () => {
+        if (transitionDone) return;
+        transitionDone = true;
         isTransitioning = false;
         if (!game) return;
-        game.scene.stop('Draft');
-        game.scene.start('Battle');
+        if (game.scene.isActive('Draft')) game.scene.stop('Draft');
+        if (!game.scene.isActive('Battle')) game.scene.start('Battle');
+      };
+
+      // Bảo hiểm tuyệt đối: sau 3.5s chắc chắn phải vào BattleScene, không bao giờ để đơ màn hình
+      const safetyTimer = window.setTimeout(finishTransition, 3500);
+
+      draftScene.startMatchTransition(view, () => {
+        window.clearTimeout(safetyTimer);
+        finishTransition();
       });
       return;
     }

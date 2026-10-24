@@ -33,6 +33,7 @@ export class DraftScene extends Phaser.Scene {
   private toast: Phaser.GameObjects.Text | null = null;
   private exitArmed = false;
   private disposed = false;
+  private transitioning = false;
   /** Đang chờ server xác nhận pick/ban — chặn gửi trùng. */
   private pending: 'pick' | 'ban' | null = null;
   private entered = false;
@@ -57,6 +58,7 @@ export class DraftScene extends Phaser.Scene {
 
     this.unsubs.push(
       matchStore.subscribe(() => {
+        if (this.transitioning || this.disposed) return;
         const view = matchStore.view;
         if (!view || !view.draft) return;
         this.render(view);
@@ -138,6 +140,7 @@ export class DraftScene extends Phaser.Scene {
   // ── Render từ MatchView ───────────────────────────────────────────────
 
   private render(view: MatchView): void {
+    if (this.transitioning || this.disposed) return;
     const draft = view.draft;
     if (!draft) return;
     this.view = view;
@@ -667,6 +670,8 @@ export class DraftScene extends Phaser.Scene {
       return;
     }
 
+    this.transitioning = true;
+
     const currentView = view ?? this.view;
     const you = currentView?.you ?? 'P1';
     const opponent = otherSide(you);
@@ -771,13 +776,15 @@ export class DraftScene extends Phaser.Scene {
     bg.lineStyle(1, COLORS.border, 0.6);
     bg.lineBetween(left + 24, top + 80, left + modalW - 24, top + 80);
 
+    // BẮT BUỘC: Thêm bg vào modal đầu tiên để mọi chữ và huy hiệu nằm đè lên trên bg
+    modal.add(bg);
+    modal.add([title, sub]);
+
     // Danh sách 3 tướng vào trận
-    const yourSquad = draft
-      ? draft.picks[you].filter((h) => h !== enemyBanHero).slice(0, 3)
-      : [];
-    const enemySquad = draft
-      ? draft.picks[opponent].filter((h) => h !== yourBanHero).slice(0, 3)
-      : [];
+    const yourPicks = draft?.picks?.[you] ?? [];
+    const enemyPicks = draft?.picks?.[opponent] ?? [];
+    const yourSquad = yourPicks.filter((h) => h !== enemyBanHero).slice(0, 3);
+    const enemySquad = enemyPicks.filter((h) => h !== yourBanHero).slice(0, 3);
 
     // Helper vẽ từng cột
     const drawSideColumn = (
@@ -896,32 +903,46 @@ export class DraftScene extends Phaser.Scene {
       this,
       0,
       top + modalH - 36,
-      'Trận đấu sẽ bắt đầu sau giây lát…',
+      'Tự động vào trận sau 2s · Nhấp chuột bất kỳ đâu để vào ngay ›',
       12,
       COLORS.dim,
     ).setOrigin(0.5);
 
-    modal.add([bg, title, sub, footLine, countdownTxt]);
+    modal.add([footLine, countdownTxt]);
 
     this.tweens.add({
       targets: modal,
       scaleX: 1,
       scaleY: 1,
       alpha: 1,
-      duration: 240,
+      duration: 220,
       ease: 'Back.easeOut',
     });
 
-    // Giữ kết quả cấm chọn trong 2.5s để người chơi thấy rõ ràng rồi fade out chuyển cảnh
-    this.time.delayedCall(2_500, () => {
-      if (this.disposed) {
-        onComplete();
-        return;
-      }
-      this.cameras.main.fadeOut(380, 4, 6, 12);
-      this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
-        onComplete();
+    let transitionFinished = false;
+    const finish = () => {
+      if (transitionFinished) return;
+      transitionFinished = true;
+      this.tweens.killTweensOf(modal);
+      this.tweens.killTweensOf(scrim);
+      onComplete();
+    };
+
+    // Cho phép người chơi nhấp chuột bất kỳ đâu để bỏ qua và vào trận ngay lập tức!
+    this.input.once('pointerdown', finish);
+
+    // Tự động chuyển sau 2.2 giây bằng tween mượt mà (không phụ thuộc Camera event)
+    this.time.delayedCall(2200, () => {
+      if (transitionFinished) return;
+      this.tweens.add({
+        targets: [modal, scrim],
+        alpha: 0,
+        duration: 260,
+        ease: 'Quad.easeInOut',
+        onComplete: finish,
       });
+      // Bảo hiểm tuyệt đối: sau 350ms chắc chắn chuyển cảnh
+      this.time.delayedCall(350, finish);
     });
   }
 }
