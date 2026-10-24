@@ -174,13 +174,29 @@ export class DraftScene extends Phaser.Scene {
 
     this.prevPicks = { you: currentYouPicks, enemy: currentEnemyPicks };
 
-    // Rung nhẹ camera khi có lượt pick mới
-    if (newYouPicks.length > 0 || newEnemyPicks.length > 0) {
-      this.cameras.main.shake(140, 0.005);
-    }
+    const bannedFromYou = draft.bans?.[opponent] ?? [];
+    const bannedFromEnemy = draft.bans?.[you] ?? (draft.yourBan ? [draft.yourBan] : []);
 
-    this.renderPickSlots(this.yourChips, draft.picks[you], 4, COLORS.accent, 168, newYouPicks);
-    this.renderPickSlots(this.enemyChips, draft.picks[opponent], 4, COLORS.enemy, 1112, newEnemyPicks);
+    this.renderPickSlots(
+      this.yourChips,
+      draft.picks[you],
+      4,
+      COLORS.accent,
+      168,
+      newYouPicks,
+      bannedFromYou,
+      '🚫 ĐỐI THỦ ĐÃ CẤM',
+    );
+    this.renderPickSlots(
+      this.enemyChips,
+      draft.picks[opponent],
+      4,
+      COLORS.enemy,
+      1112,
+      newEnemyPicks,
+      bannedFromEnemy,
+      '🚫 BẠN ĐÃ CẤM',
+    );
 
     this.ownBanText.setText(
       draft.yourBan ? `Đã ban: ${draft.yourBan}` : draft.phase === 'ban' ? 'Chưa chọn ban' : '',
@@ -233,16 +249,19 @@ export class DraftScene extends Phaser.Scene {
     accent: number,
     centerX: number,
     newPicks: readonly Archetype[] = [],
+    bannedHeroes: readonly Archetype[] = [],
+    bannedLabel = '',
   ): void {
     layer.removeAll(true);
     for (let i = 0; i < slots; i += 1) {
       const y = 168 + i * 74;
       const archetype = picks[i] ?? null;
-      const chip = new MiniHeroSlot(this, centerX, y, 256, 62, archetype, accent);
+      const isBanned = archetype !== null && bannedHeroes.includes(archetype);
+      const chip = new MiniHeroSlot(this, centerX, y, 256, 62, archetype, accent, isBanned, bannedLabel);
       layer.add(chip);
 
-      // Nếu slot này vừa nhận tướng mới -> hiệu ứng nảy pop-in ease-in ease-out mạnh mẽ
-      if (archetype && newPicks.includes(archetype)) {
+      // Nếu slot này vừa nhận tướng mới và không bị cấm -> hiệu ứng nảy pop-in ease-in ease-out mạnh mẽ
+      if (archetype && newPicks.includes(archetype) && !isBanned) {
         chip.playPickPop(accent);
       }
     }
@@ -639,35 +658,67 @@ export class DraftScene extends Phaser.Scene {
   }
 
   /**
-   * Chuyển cảnh mượt mà: Báo hiệu bắt đầu trận đấu với pháo hoa, flash, rung lắc & fade mượt trước khi sang Battle.
+   * Chuyển cảnh mượt mà: Hiển thị rõ ràng kết quả cấm chọn (Ban Reveal) của cả hai bên
+   * trước khi bước vào đấu trường Match-3. KHÔNG rung lắc màn hình để bảo vệ mắt người chơi.
    */
-  startMatchTransition(onComplete: () => void): void {
+  startMatchTransition(view: MatchView | null, onComplete: () => void): void {
     if (this.disposed) {
       onComplete();
       return;
     }
 
-    // Khóa tương tác
-    this.rosterLayer.setAlpha(0.3);
+    const currentView = view ?? this.view;
+    const you = currentView?.you ?? 'P1';
+    const opponent = otherSide(you);
+    const draft = currentView?.draft;
+
+    const yourBanHero = draft?.bans?.[you]?.[0] ?? draft?.yourBan ?? null;
+    const enemyBanHero = draft?.bans?.[opponent]?.[0] ?? null;
+
+    // Cập nhật ngay các ô slot tướng bên cạnh với nhãn cấm đỏ rực
+    if (draft) {
+      this.renderPickSlots(
+        this.yourChips,
+        draft.picks[you],
+        4,
+        COLORS.accent,
+        168,
+        [],
+        enemyBanHero ? [enemyBanHero] : [],
+        '🚫 ĐỐI THỦ ĐÃ CẤM',
+      );
+      this.renderPickSlots(
+        this.enemyChips,
+        draft.picks[opponent],
+        4,
+        COLORS.enemy,
+        1112,
+        [],
+        yourBanHero ? [yourBanHero] : [],
+        '🚫 BẠN ĐÃ CẤM',
+      );
+    }
+
+    // Khóa tương tác & đóng modal chi tiết
+    this.rosterLayer.setAlpha(0.2);
     this.closeModal();
 
     // Lớp scrim đen mờ
     const scrim = this.add.graphics().setDepth(90);
-    scrim.fillStyle(COLORS.black, 0.78);
+    scrim.fillStyle(COLORS.black, 0.82);
     scrim.fillRect(0, 0, 1280, 720);
     scrim.setAlpha(0);
-    this.tweens.add({ targets: scrim, alpha: 1, duration: 220, ease: 'Quad.easeOut' });
+    this.tweens.add({ targets: scrim, alpha: 1, duration: 200, ease: 'Quad.easeOut' });
 
-    // Flash & Rung lắc kích thích
-    this.cameras.main.flash(220, 255, 235, 180, false);
-    this.cameras.main.shake(320, 0.012);
+    // Chớp sáng nhẹ nhàng tạo điểm nhấn (KHÔNG rung giật màn hình)
+    this.cameras.main.flash(140, 255, 235, 180, false);
 
     // Chùm tia pháo hoa vàng rực rỡ bùng tỏa từ trung tâm
-    for (let i = 0; i < 32; i += 1) {
-      const angle = (i / 32) * Math.PI * 2 + Phaser.Math.FloatBetween(-0.08, 0.08);
-      const dist = Phaser.Math.Between(80, 320);
+    for (let i = 0; i < 28; i += 1) {
+      const angle = (i / 28) * Math.PI * 2 + Phaser.Math.FloatBetween(-0.08, 0.08);
+      const dist = Phaser.Math.Between(80, 300);
       const spark = this.add
-        .circle(640, 360, Phaser.Math.FloatBetween(2.6, 5.2), COLORS.gold, 1)
+        .circle(640, 360, Phaser.Math.FloatBetween(2.4, 4.6), COLORS.gold, 1)
         .setDepth(95);
       this.tweens.add({
         targets: spark,
@@ -681,31 +732,188 @@ export class DraftScene extends Phaser.Scene {
       });
     }
 
-    // Banner chữ hoành tráng
-    const banner = this.add.container(640, 360).setDepth(100).setScale(0.35).setAlpha(0);
-    const title = label(this, 0, -22, '⚔️ BẮT ĐẦU TRẬN ĐẤU ⚔️', 44, COLORS.gold, 'bold')
-      .setOrigin(0.5)
-      .setStroke('#030712', 8)
-      .setShadow(0, 0, '#fbbf24', 36, true, true);
+    // Modal Kết quả cấm chọn (Ban Reveal)
+    const modal = this.add.container(640, 360).setDepth(100).setScale(0.88).setAlpha(0);
 
-    const sub = label(this, 0, 32, 'CHUYỂN VÀO ĐẤU TRƯỜNG MATCH-3 · VÒNG 1', 16, COLORS.accent, 'bold')
+    const modalW = 860;
+    const modalH = 470;
+    const left = -modalW / 2;
+    const top = -modalH / 2;
+
+    const bg = this.add.graphics();
+    // Đổ bóng nền
+    bg.fillStyle(COLORS.black, 0.6);
+    bg.fillRoundedRect(left + 4, top + 4, modalW, modalH, 16);
+    // Khung modal chính
+    bg.fillStyle(0x0b101a, 0.98);
+    bg.fillRoundedRect(left, top, modalW, modalH, 16);
+    bg.lineStyle(2, COLORS.gold, 0.8);
+    bg.strokeRoundedRect(left, top, modalW, modalH, 16);
+
+    // Tiêu đề
+    const title = label(this, 0, top + 34, '⚔️ KẾT QUẢ CẤM CHỌN (BAN REVEAL) ⚔️', 24, COLORS.gold, 'bold')
       .setOrigin(0.5)
-      .setLetterSpacing(1.6)
+      .setStroke('#030712', 6)
+      .setShadow(0, 0, '#fbbf24', 24, true, true);
+
+    const sub = label(
+      this,
+      0,
+      top + 62,
+      'CẢ HAI BÊN ĐÃ CẤM XONG 1 TƯỚNG CỦA NHAU · ĐỘI HÌNH 3V3 CHÍNH THỨC VÀO TRẬN',
+      12,
+      COLORS.muted,
+      'bold',
+    )
+      .setOrigin(0.5)
+      .setLetterSpacing(0.8);
+
+    bg.lineStyle(1, COLORS.border, 0.6);
+    bg.lineBetween(left + 24, top + 80, left + modalW - 24, top + 80);
+
+    // Danh sách 3 tướng vào trận
+    const yourSquad = draft
+      ? draft.picks[you].filter((h) => h !== enemyBanHero).slice(0, 3)
+      : [];
+    const enemySquad = draft
+      ? draft.picks[opponent].filter((h) => h !== yourBanHero).slice(0, 3)
+      : [];
+
+    // Helper vẽ từng cột
+    const drawSideColumn = (
+      colCenterX: number,
+      sideName: string,
+      sideColor: number,
+      banHeader: string,
+      bannedHero: Archetype | null,
+      bannedSub: string,
+      squad: readonly Archetype[],
+    ) => {
+      const colW = 384;
+      const colH = 256;
+      const colLeft = colCenterX - colW / 2;
+      const colTop = top + 94;
+
+      bg.fillStyle(0x0f172a, 0.85);
+      bg.fillRoundedRect(colLeft, colTop, colW, colH, 12);
+      bg.lineStyle(1.5, sideColor, 0.65);
+      bg.strokeRoundedRect(colLeft, colTop, colW, colH, 12);
+
+      const teamTitle = label(this, colCenterX, colTop + 20, sideName, 15, sideColor, 'bold').setOrigin(0.5);
+      modal.add(teamTitle);
+
+      // Hộp TƯỚNG BỊ CẤM
+      const banBoxW = 352;
+      const banBoxH = 86;
+      const banBoxLeft = colCenterX - banBoxW / 2;
+      const banBoxTop = colTop + 38;
+
+      bg.fillStyle(0x28090f, 0.95);
+      bg.fillRoundedRect(banBoxLeft, banBoxTop, banBoxW, banBoxH, 8);
+      bg.lineStyle(2, COLORS.danger, 0.95);
+      bg.strokeRoundedRect(banBoxLeft, banBoxTop, banBoxW, banBoxH, 8);
+
+      const banHeaderTxt = label(this, colCenterX, banBoxTop + 16, banHeader, 11, 0xfca5a5, 'bold')
+        .setOrigin(0.5)
+        .setLetterSpacing(0.6);
+
+      const bannedHeroTxt = bannedHero
+        ? `🚫 ${ARCHETYPE_EMOJI[bannedHero]} ${bannedHero}`
+        : '— KHÔNG CẤM —';
+      const banHeroLabel = label(this, colCenterX, banBoxTop + 42, bannedHeroTxt, 18, COLORS.danger, 'bold').setOrigin(
+        0.5,
+      );
+
+      const banSubTxt = label(this, colCenterX, banBoxTop + 68, bannedSub, 11, COLORS.muted).setOrigin(0.5);
+
+      modal.add([banHeaderTxt, banHeroLabel, banSubTxt]);
+
+      // Hộp 3 TƯỚNG RA TRẬN
+      const squadLabel = label(this, colCenterX, colTop + 144, '⚔️ 3 TƯỚNG RA TRẬN:', 12, COLORS.text, 'bold')
+        .setOrigin(0.5)
+        .setLetterSpacing(0.8);
+      modal.add(squadLabel);
+
+      squad.forEach((hero, idx) => {
+        const pillW = 110;
+        const pillH = 38;
+        const pillX = colCenterX - 118 + idx * 118;
+        const pillY = colTop + 192;
+
+        bg.fillStyle(0x131d33, 0.95);
+        bg.fillRoundedRect(pillX - pillW / 2, pillY - pillH / 2, pillW, pillH, 6);
+        bg.lineStyle(1.5, ARCHETYPE_COLOR[hero], 0.85);
+        bg.strokeRoundedRect(pillX - pillW / 2, pillY - pillH / 2, pillW, pillH, 6);
+
+        const heroTxt = label(
+          this,
+          pillX,
+          pillY,
+          `${ARCHETYPE_EMOJI[hero]} ${hero}`,
+          12,
+          ARCHETYPE_COLOR[hero],
+          'bold',
+        ).setOrigin(0.5);
+        modal.add(heroTxt);
+      });
+    };
+
+    drawSideColumn(
+      -204,
+      '🛡️ ĐỘI BẠN (ALLY)',
+      COLORS.accent,
+      '⚠️ ĐỐI THỦ ĐÃ CẤM TƯỚNG CỦA BẠN:',
+      enemyBanHero,
+      '(Bị loại khỏi đội hình của bạn)',
+      yourSquad,
+    );
+
+    drawSideColumn(
+      204,
+      '🎯 ĐỘI ĐỊCH (ENEMY)',
+      COLORS.enemy,
+      '🎯 BẠN ĐÃ CẤM TƯỚNG ĐỐI THỦ:',
+      yourBanHero,
+      '(Đã loại bỏ khỏi đội hình đối thủ)',
+      enemySquad,
+    );
+
+    // Chân trang modal
+    const footLine = label(
+      this,
+      0,
+      top + modalH - 64,
+      '⚡ TIẾN VÀO ĐẤU TRƯỜNG MATCH-3 · VÒNG 1 ⚡',
+      15,
+      COLORS.gold,
+      'bold',
+    )
+      .setOrigin(0.5)
+      .setLetterSpacing(1.2)
       .setStroke('#030712', 4);
 
-    banner.add([title, sub]);
+    const countdownTxt = label(
+      this,
+      0,
+      top + modalH - 36,
+      'Trận đấu sẽ bắt đầu sau giây lát…',
+      12,
+      COLORS.dim,
+    ).setOrigin(0.5);
+
+    modal.add([bg, title, sub, footLine, countdownTxt]);
 
     this.tweens.add({
-      targets: banner,
+      targets: modal,
       scaleX: 1,
       scaleY: 1,
       alpha: 1,
-      duration: 300,
+      duration: 240,
       ease: 'Back.easeOut',
     });
 
-    // Sau khi hiển thị ấn tượng 720ms, fade out màn hình mượt mà
-    this.time.delayedCall(720, () => {
+    // Giữ kết quả cấm chọn trong 2.5s để người chơi thấy rõ ràng rồi fade out chuyển cảnh
+    this.time.delayedCall(2_500, () => {
       if (this.disposed) {
         onComplete();
         return;

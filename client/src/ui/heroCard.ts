@@ -305,6 +305,7 @@ export class MiniHeroSlot extends Phaser.GameObjects.Container {
   readonly slotWidth: number;
   readonly slotHeight: number;
   readonly archetype: Archetype | null;
+  readonly isBanned: boolean;
 
   constructor(
     scene: Phaser.Scene,
@@ -314,25 +315,55 @@ export class MiniHeroSlot extends Phaser.GameObjects.Container {
     height: number,
     archetype: Archetype | null,
     accentColor: number = COLORS.accent,
+    isBanned = false,
+    bannedLabel = '',
   ) {
     const g = scene.add.graphics();
     const left = -width / 2;
     const top = -height / 2;
 
-    g.fillStyle(COLORS.bgDeep, archetype ? 0.75 : 0.4);
+    const bgAlpha = isBanned ? 0.92 : archetype ? 0.75 : 0.4;
+    const bgColor = isBanned ? 0x22070c : COLORS.bgDeep;
+    g.fillStyle(bgColor, bgAlpha);
     g.fillRoundedRect(left, top, width, height, 10);
-    g.lineStyle(1.5, archetype ? accentColor : COLORS.border, archetype ? 0.8 : 0.5);
+
+    const borderColor = isBanned ? COLORS.danger : archetype ? accentColor : COLORS.border;
+    const borderAlpha = isBanned ? 0.95 : archetype ? 0.8 : 0.5;
+    g.lineStyle(isBanned ? 2 : 1.5, borderColor, borderAlpha);
     g.strokeRoundedRect(left, top, width, height, 10);
 
     const parts: Phaser.GameObjects.GameObject[] = [g];
 
     if (archetype) {
-      const color = ARCHETYPE_COLOR[archetype];
+      const color = isBanned ? COLORS.danger : ARCHETYPE_COLOR[archetype];
       const emoji = ARCHETYPE_EMOJI[archetype];
-      g.fillStyle(color, 0.95);
+      g.fillStyle(color, isBanned ? 0.45 : 0.95);
       g.fillRoundedRect(left, top + 6, 4, height - 12, 2);
-      const name = label(scene, left + 14, top + 9, `${emoji} ${archetype}`, 14, COLORS.text, 'bold');
-      const role = label(scene, left + 14, top + height - 20, 'ĐÃ CHỌN', 11, color, 'bold').setLetterSpacing(0.8);
+
+      const name = label(
+        scene,
+        left + 14,
+        top + 9,
+        `${emoji} ${archetype}`,
+        14,
+        isBanned ? COLORS.muted : COLORS.text,
+        'bold',
+      );
+
+      // Nếu bị cấm: gạch ngang đỏ qua tên tướng
+      if (isBanned) {
+        const strike = scene.add.graphics();
+        strike.lineStyle(2, COLORS.danger, 0.9);
+        strike.lineBetween(left + 14, top + 18, left + 14 + name.width + 4, top + 18);
+        parts.push(strike);
+      }
+
+      const roleText = isBanned
+        ? (bannedLabel || '🚫 ĐÃ BỊ CẤM')
+        : 'ĐÃ CHỌN';
+      const roleColor = isBanned ? COLORS.danger : color;
+
+      const role = label(scene, left + 14, top + height - 20, roleText, 11, roleColor, 'bold').setLetterSpacing(0.8);
       parts.push(name, role);
     } else {
       const empty = label(scene, 0, 0, '— CHỜ CHỌN —', 13, COLORS.dim, 'bold').setOrigin(0.5);
@@ -343,6 +374,7 @@ export class MiniHeroSlot extends Phaser.GameObjects.Container {
     this.slotWidth = width;
     this.slotHeight = height;
     this.archetype = archetype;
+    this.isBanned = isBanned;
     this.setSize(width, height);
   }
 

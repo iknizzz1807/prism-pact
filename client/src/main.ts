@@ -27,7 +27,7 @@ function route(): void {
     const draftScene = game.scene.getScene('Draft') as DraftScene | undefined;
     if (draftScene && typeof draftScene.startMatchTransition === 'function') {
       isTransitioning = true;
-      draftScene.startMatchTransition(() => {
+      draftScene.startMatchTransition(view, () => {
         isTransitioning = false;
         if (!game) return;
         game.scene.stop('Draft');

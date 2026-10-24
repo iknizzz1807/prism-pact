@@ -568,11 +568,9 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private showCombo(combo: number): void {
-    // Rung lắc màn hình & chớp sáng tăng theo combo
-    const shakePower = Math.min(0.008 + combo * 0.004, 0.026);
-    this.cameras.main.shake(160 + combo * 30, shakePower);
-    if (combo >= 2) {
-      this.cameras.main.flash(110, 255, 230, 160, false);
+    // Không rung lắc màn hình ở combo để mắt thoải mái, không gây nhức đầu
+    if (combo >= 3) {
+      this.cameras.main.flash(90, 255, 230, 160, false);
     }
 
     const fontSize = Math.min(36 + combo * 4, 54);
@@ -746,7 +744,7 @@ export class BattleScene extends Phaser.Scene {
               });
             }
 
-            // Hạt cuối cùng trong cụm chạm đích -> gợn sóng hấp thụ và rung nhẹ
+            // Hạt cuối cùng trong cụm chạm đích -> gợn sóng hấp thụ êm ái
             if (m === MOTES_PER_CELL - 1) {
               const pulse = this.add.circle(to.x, to.y, 8).setStrokeStyle(2.5, color, 0.85).setDepth(32);
               this.tweens.add({
@@ -757,9 +755,6 @@ export class BattleScene extends Phaser.Scene {
                 ease: 'Quad.easeOut',
                 onComplete: () => pulse.destroy(),
               });
-              if (color === COLORS.atk) {
-                this.cameras.main.shake(90, 0.005);
-              }
             }
           },
         });

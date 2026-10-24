@@ -212,3 +212,9 @@ client/src/
     - **Pick/Ban Punch & Pop**: Bổ sung hiệu ứng giật nảy recoil (`Back.easeOut`, scale 1.12) kèm vành hào quang và hạt tia lửa bung tỏa trên thẻ tướng được chọn (`DraftHeroCard.playPickRecoil`), đồng thời ô tướng side slot (`MiniHeroSlot.playPickPop`) nảy mạnh mẽ từ scale 0.62 lên 1.0 với hào quang mở rộng và camera mini-shake.
     - **Chuyển cảnh mượt mà Draft -> Battle**: Loại bỏ hoàn toàn cú ngắt đột ngột; bổ sung `DraftScene.startMatchTransition()` với pháo hoa vàng, camera flash & shake, banner "⚔️ BẮT ĐẦU TRẬN ĐẤU ⚔️", fade out êm ái sang đen và fade in êm ái vào `BattleScene` kèm thông báo "VÒNG 1 · BẮT ĐẦU".
     - **Hiệu ứng Bụi Tiên (Fairy Dust Swarm)**: Thay thế hoàn toàn quả cầu to thô kệch bằng chùm 5 hạt bụi tiên nhỏ (2.2px - 3.8px) lấp lánh kèm lõi trắng cho mỗi ô ngọc ăn điểm; hạt bay tản uốn lượn theo dải đường cong Bezier tự nhiên, rải bụi li ti dọc đường và bung mưa tia lửa nhẹ nhàng khi đáp xuống thẻ tướng/thanh mana.
+15. Khử rung lắc màn hình (screen shake) và hoàn thiện bảng Tiết lộ Cấm Chọn (Ban Reveal):
+    - **Khử rung màn hình**: Bỏ hoàn toàn camera shake ở combo trong `BattleScene` và khi đạn chạm đích, bỏ camera shake khi pick/ban tướng trong `DraftScene` (giữ nguyên hoạt cảnh nảy ease-in/ease-out punch & pop trên thẻ và slot).
+    - **Bảng Tiết lộ Cấm Chọn (Ban Reveal)**: Chuyển cảnh `DraftScene.startMatchTransition()` giờ hiển thị bảng đối chiếu 860×470px trong 2.5s trước khi vào trận:
+      - Cột Ally: hiển thị rõ ràng hộp đỏ `⚠️ ĐỐI THỦ ĐÃ CẤM: 🚫 [Tướng]` và danh sách 3 tướng vào trận của bạn.
+      - Cột Enemy: hiển thị rõ ràng hộp đỏ `🎯 BẠN ĐÃ CẤM: 🚫 [Tướng]` và danh sách 3 tướng vào trận của đối thủ.
+      - Các ô tướng bên cánh (`MiniHeroSlot`) lập tức được cập nhật viền đỏ, tên bị gạch ngang và nhãn `🚫 ĐỐI THỦ ĐÃ CẤM` / `🚫 BẠN ĐÃ CẤM`.
