@@ -110,7 +110,7 @@ npm run deploy:fuji                         # deploy Fuji, ghi contracts/deploym
 
 | Trụ cột | Nội dung | Cảm xúc mục tiêu |
 |---|---|---|
-| **Draft đối kháng** | Ban/pick live snake-8, pool 20, 30s/lượt, counter-pick theo archetype | *"Nó pick Tank, tôi phải counter"* |
+| **Draft đối kháng** | Ban/pick live snake-8, pool 20, 20s/lượt, counter-pick theo archetype | *"Nó pick Tank, tôi phải counter"* |
 | **Match-3 có cam kết** | Target chọn trước khi xếp ngọc | *"Tôi có đọc đúng board không?"* |
 | **No-loss prize** | Stake không mất gốc, yield sinh prize pool | *"Chơi giỏi có thưởng, chơi dở không sao"* |
 
@@ -158,7 +158,7 @@ npm run deploy:fuji                         # deploy Fuji, ghi contracts/deploym
 | Loại ngọc | 4: ATK / HP / Mana / Shield — **dùng chung cho 2 bên** |
 | Mana | **Bể chung toàn đội** (0–100) |
 | Skill | Tối đa **1 skill/lượt/đội**, tốn mana + có cooldown riêng |
-| Thời gian lượt | **20s** |
+| Thời gian lượt | **15s** |
 | Giới hạn trận | **50 lượt** (25 mỗi bên) → Sudden Death |
 | Hình thức | PvP real-time (2 người) hoặc PvBot |
 
@@ -171,14 +171,14 @@ Bàn vuông 8x8 (không phải 8x6) vì màn hình portrait cần chừa không 
 - **Pool chung 20 tướng**, không ai xem trước đội hình đối thủ.
 - Draft **live, công khai real-time**: pick/ban của mỗi bên hiện ngay cho bên kia (giống LoL, không phải blind pick).
 - Không được pick trùng tướng (tướng đã pick/banned bị loại khỏi pool cho cả 2).
-- Mỗi lượt pick: **30s**. Hết giờ → server tự random 1 tướng còn lại (chống AFK câu giờ).
-- Mỗi lượt ban: **20s**, **đồng thời và ẩn** — hai bên không thấy ban của nhau cho tới khi hết giờ (tránh lợi thế thông tin cho người ban sau).
+- Mỗi lượt pick: **20s**. Hết giờ → server tự random 1 tướng còn lại (chống AFK câu giờ).
+- Mỗi lượt ban: **15s**, **đồng thời và ẩn** — hai bên không thấy ban của nhau cho tới khi hết giờ (tránh lợi thế thông tin cho người ban sau).
 
 #### 4.2.2 Thứ tự chính xác
 
 ```
 PICK (snake-8):  P1 → P2 → P2 → P1 → P1 → P2 → P2 → P1
-BAN:             P1 ban 1 (ẩn) ∥ P2 ban 1 (ẩn)  → 20s
+BAN:             P1 ban 1 (ẩn) ∥ P2 ban 1 (ẩn)  → 15s
 KẾT QUẢ:         mỗi bên còn 3 tướng → vào trận
 ```
 
@@ -254,7 +254,7 @@ Mọi ngọc **dùng chung cho 2 bên** — không phân biệt màu theo tướ
 
 - Một lượt = **đúng 1 lần swap 2 ngọc kề cạnh** (4 hướng).
 - Swap **không tạo match** → bị từ chối, ngọc trả về chỗ cũ, **không mất lượt** (không trừ timer, người chơi thử lại).
-- Hết 20s → server tự chạy **1 swap hợp lệ random** (không phạt người chơi, tránh turn bị treo).
+- Hết 15s → server tự chạy **1 swap hợp lệ random** (không phạt người chơi, tránh turn bị treo).
 
 ### 4.4 Vòng đời một lượt (turn flow)
 
@@ -270,7 +270,7 @@ Mọi ngọc **dùng chung cho 2 bên** — không phân biệt màu theo tướ
           Chọn tướng đủ mana + hết CD → tung skill
                                  ↓
         BƯỚC 2 — TARGET (bắt buộc)
-          Tap 1 tướng địch. Không chọn trong 20s
+          Tap 1 tướng địch. Không chọn trong 15s
           → mặc định tướng slot 1 (Tanker) của địch
                                  ↓
         BƯỚC 3 — SWAP
@@ -342,7 +342,7 @@ heal_per_gem = ceil(maxHP(hero) * 0.006)
 
 - Mỗi gem 💧 nổ = **+2 mana** vào bể chung (0–100, dư bị cắt).
 - Match 3 = 6 mana; cascade nhiều wave cộng dồn.
-- Đầu trận mỗi bên có **25 mana** (STARTING_MANA).
+- Đầu trận mỗi bên có **30 mana** (STARTING_MANA).
 - Khi damage bị cap (4.11), mỗi hit vượt cap đổi thành **+1 mana** (soft-landing thay vì mất trắng).
 
 ### 4.7 Mana & Skill
@@ -360,41 +360,41 @@ Mỗi tướng: **1 skill độc + 1 passive + 1 điểm yếu rõ ràng**. Đâ
 
 | # | Archetype | HP | ATK | DEF | Skill | Mana | CD | Passive |
 |---|---|---|---|---|---|---|---|---|
-| 1 | **Tank** | 1440 | 60 | 60 | **Taunt** — kéo toàn bộ target của địch về mình trong 1 lượt của địch | 32 | 3 | +30% DEF khi HP < 50% |
-| 2 | **Burst** | 720 | 144 | 15 | **Nuke** — 3× ATK lên 1 target | 40 | 3 | +20% ATK khi team còn đủ 3 người |
-| 3 | **Healer** | 880 | 48 | 25 | **Mass Heal** — hồi 40% maxHP cả team | 48 | 4 | Tự hồi 5% maxHP đầu mỗi lượt của mình |
-| 4 | **Controller** | 800 | 72 | 20 | **Weaken** — giảm 50% ATK target trong 2 lượt | 32 | 3 | Skill trúng → +10 mana team |
-| 5 | **Buffer** | 800 | 60 | 30 | **Rally** — +30% ATK và shield 20% maxHP cả team trong 2 lượt | 40 | 3 | Team +10% ATK |
-| 6 | **Debuffer** | 760 | 66 | 20 | **Strip** — giảm 50% DEF target trong 2 lượt | 32 | 3 | Team +15% damage lên target đang bị debuff |
-| 7 | **Assassin** | 680 | 120 | 10 | **Execute** — 2.5× ATK, bỏ qua 50% DEF, đánh tướng địch HP thấp nhất | 40 | 3 | +30% damage lên target < 30% HP |
-| 8 | **Bruiser** | 1120 | 96 | 35 | **Lifesteal Strike** — 2× ATK + hồi 50% damage gây ra | 36 | 3 | Team +15% lifesteal |
+| 1 | **Tank** | 1242 | 56 | 56 | **Taunt** — kéo toàn bộ target của địch về mình trong 1 lượt của địch | 32 | 3 | +30% DEF khi HP < 50% |
+| 2 | **Burst** | 630 | 132 | 14 | **Nuke** — 3× ATK lên 1 target | 40 | 3 | +20% ATK khi team còn đủ 3 người |
+| 3 | **Healer** | 930 | 55 | 28 | **Mass Heal** — hồi 40% maxHP cả team | 48 | 4 | Tự hồi 5% maxHP đầu mỗi lượt của mình |
+| 4 | **Controller** | 940 | 88 | 26 | **Weaken** — giảm 50% ATK target trong 2 lượt | 32 | 3 | Skill trúng → +10 mana team |
+| 5 | **Buffer** | 820 | 64 | 34 | **Rally** — +30% ATK và shield 20% maxHP cả team trong 2 lượt | 40 | 3 | Team +10% ATK |
+| 6 | **Debuffer** | 940 | 86 | 26 | **Strip** — giảm 50% DEF target trong 2 lượt | 32 | 3 | Team +15% damage lên target đang bị debuff |
+| 7 | **Assassin** | 630 | 120 | 10 | **Execute** — 2.5× ATK, bỏ qua 50% DEF, đánh tướng địch HP thấp nhất | 40 | 3 | +30% damage lên target < 30% HP |
+| 8 | **Bruiser** | 960 | 82 | 30 | **Lifesteal Strike** — 2× ATK + hồi 50% damage gây ra | 36 | 3 | Team +15% lifesteal |
 
 #### 4.8.1 Bốn hero P1 mới (25/10)
 
 | # | Archetype | Role | HP / ATK / DEF | Skill (mana · CD) | Passive |
 |---|---|---|---|---|---|
-| 9 | **Paladin** | Tank/sustain | 1400 / 66 / 55 | **Divine Aegis** 40 · 4 — 1 ally Invincible 1 lượt; 1 lần/trận | Ally <40% HP +15% DEF |
-| 10 | **Juggernaut** | Tank/counter | 1520 / 54 / 65 | **Iron Thorns** 36 · 3 — 2 lượt phản 40% basic, +20% DEF | Bị basic hit → +5% ATK (cap +20%) |
-| 11 | **Executioner** | Assassin/anti-tank | 800 / 114 / 20 | **Sever** 40 · 4 — 1.8× ATK + 12% maxHP true, ignore 40% DEF | +25% damage vs DEF ≥40 |
-| 12 | **Sniper** | Assassin/shield-break | 640 / 138 / 12 | **Deadshot** 36 · 3 — 2.4× ATK, xuyên shield; +30% nếu target có shield | +15% ATK vs target full HP |
+| 9 | **Paladin** | Tank/sustain | 1240 / 64 / 52 | **Divine Aegis** 40 · 4 — 1 ally Invincible 1 lượt; 1 lần/trận | Ally <40% HP +15% DEF |
+| 10 | **Juggernaut** | Tank/counter | 1320 / 48 / 58 | **Iron Thorns** 36 · 3 — 2 lượt phản 40% basic, +20% DEF | Bị basic hit → +5% ATK (cap +20%) |
+| 11 | **Executioner** | Assassin/anti-tank | 702 / 108 / 18 | **Sever** 40 · 4 — 1.8× ATK + 12% maxHP true, ignore 40% DEF | +25% damage vs DEF ≥40 |
+| 12 | **Sniper** | Assassin/shield-break | 576 / 138 / 12 | **Deadshot** 36 · 3 — 2.4× ATK, xuyên shield; +30% nếu target có shield | +15% ATK vs target full HP |
 
 #### 4.8.2 Bốn hero P2 mới (25/10)
 
 | # | Archetype | Role | HP / ATK / DEF | Skill (mana · CD) | Passive |
 |---|---|---|---|---|---|
-| 13 | **Cleaver** | Bruiser/AoE | 784 / 126 / 15 | **Amputation** 48 · 4 — 1.3× ATK cả 3 địch, +10% mỗi địch còn sống | +15% ATK khi còn 3 địch |
-| 14 | **Pyromancer** | Mage/DoT | 760 / 90 / 20 | **Ignite** 36 · 3 — 1.2× ATK + Burn 4% maxHP/lượt 2 lượt | +15% damage vs target đang Burn |
-| 15 | **Venomancer** | Mage/AoE DoT | 840 / 72 / 25 | **Toxic Miasma** 40 · 4 — Poison 3% maxHP/lượt 2 lượt lên cả 3 địch, xuyên shield | +1% poison damage mỗi debuff khác |
-| 16 | **Oracle** | Healer/cleanse | 920 / 42 / 28 | **Mend** 36 · 3 — hồi 35% maxHP cho ally thấp nhất + cleanse 1 debuff | Ally <30% HP nhận −15% damage |
+| 13 | **Cleaver** | Bruiser/AoE | 702 / 122 / 15 | **Amputation** 48 · 4 — 1.3× ATK cả 3 địch, +10% mỗi địch còn sống | +15% ATK khi còn 3 địch |
+| 14 | **Pyromancer** | Mage/DoT | 870 / 98 / 24 | **Ignite** 36 · 3 — 1.2× ATK + Burn 4% maxHP/lượt 2 lượt | +15% damage vs target đang Burn |
+| 15 | **Venomancer** | Mage/AoE DoT | 1020 / 92 / 30 | **Toxic Miasma** 40 · 4 — Poison 3% maxHP/lượt 2 lượt lên cả 3 địch, xuyên shield | +1% poison damage mỗi debuff khác |
+| 16 | **Oracle** | Healer/cleanse | 1060 / 60 / 32 | **Mend** 36 · 3 — hồi 35% maxHP cho ally thấp nhất + cleanse 1 debuff | Ally <30% HP nhận −15% damage |
 
 #### 4.8.3 Bốn hero P3 (25/10)
 
 | # | Archetype | Role | HP / ATK / DEF | Skill (mana · CD) | Passive |
 |---|---|---|---|---|---|
-| 17 | **Necromancer** | Summoner | 760 / 72 / 20 | **Raise Thrall** 48 · 5 — Thrall 280 HP / 54 ATK, đánh target đã commit sau lượt, chết theo owner | +20 mana khi ally chết |
-| 18 | **Chronarch** | Controller/tempo | 800 / 60 / 25 | **Time Warp** 40 · 4 — +1 CD toàn bộ skill địch (cap +2), −1 CD 1 ally | Skill đầu tiên mỗi trận của mỗi ally −10 mana |
-| 19 | **Spellbreaker** | Controller/mana | 920 / 78 / 30 | **Mana Drain** 36 · 3 — đốt 25 mana địch, nhận 15, strip 1 buff | Skill địch +5 mana cost |
-| 20 | **Berserker** | Bruiser/risk | 1200 / 108 / 25 | **Reckless Swing** 32 · 3 — 2.2× ATK, mất 10% HP hiện tại (không chết), +25% ATK 2 lượt | +1% ATK mỗi 2% HP đã mất (cap +30%) |
+| 17 | **Necromancer** | Summoner | 920 / 88 / 26 | **Raise Thrall** 48 · 5 — Thrall 280 HP / 54 ATK, đánh target đã commit sau lượt, chết theo owner | +20 mana khi ally chết |
+| 18 | **Chronarch** | Controller/tempo | 1040 / 84 / 30 | **Time Warp** 40 · 4 — +1 CD toàn bộ skill địch (cap +2), −1 CD 1 ally | Skill đầu tiên mỗi trận của mỗi ally −10 mana |
+| 19 | **Spellbreaker** | Controller/mana | 970 / 85 / 33 | **Mana Drain** 36 · 3 — đốt 25 mana địch, nhận 15, strip 1 buff | Skill địch +5 mana cost |
+| 20 | **Berserker** | Bruiser/risk | 980 / 84 / 22 | **Reckless Swing** 32 · 3 — 2.2× ATK, mất 10% HP hiện tại (không chết), +25% ATK 2 lượt | +1% ATK mỗi 2% HP đã mất (cap +30%) |
 
 **Chi phí code:** mỗi skill ~20–40 dòng, mỗi passive ~10 dòng hook đầu turn. Tổng thêm ~1.5 ngày so với roster đồng nhất. Xứng đáng.
 
@@ -455,9 +455,9 @@ export const CONFIG = {
   GEM_SPAWN_WEIGHT: { ATK: 0.30, HP: 0.2333, MANA: 0.2333, SHIELD: 0.2334 },
 
   // Timing (ms)
-  TURN_TIME_MS: 20_000,
-  DRAFT_PICK_TIME_MS: 30_000,
-  DRAFT_BAN_TIME_MS: 20_000,
+  TURN_TIME_MS: 15_000,
+  DRAFT_PICK_TIME_MS: 20_000,
+  DRAFT_BAN_TIME_MS: 15_000,
   RECONNECT_GRACE_MS: 20_000,
   SWAP_ANIM_MS: 180,
   RESOLVE_STEP_MS: 120,        // mỗi wave cascade; tổng match < 2s
@@ -470,7 +470,7 @@ export const CONFIG = {
   // Gem values
   MANA_PER_GEM: 2,
   MANA_MAX: 100,
-  STARTING_MANA: 25,           // mana đầu trận mỗi bên
+  STARTING_MANA: 30,           // mana đầu trận mỗi bên
   HEAL_PCT_PER_GEM: 0.006,     // 0.6% maxHP
   SHIELD_PCT_PER_GEM: 0.006,   // 0.6% maxHP
   SHIELD_CAP_PCT: 0.60,        // 60% maxHP/tướng
@@ -559,7 +559,7 @@ JEV_LOG_DECISIONS=false
 ```
 
 Chi phí đo thực tế: ~**$0.00005/call**, ~650–700ms/call; một trận PvBot đầy đủ
-(~27 lượt × 3 call) khoảng **$0.004–0.005**. Latency 3 call/turn ~2s, vẫn dưới timer 20s.
+(~27 lượt × 3 call) khoảng **$0.004–0.005**. Latency 3 call/turn ~2s, vẫn dưới timer 15s.
 
 Code: `server/src/bots/` — `types.ts`, `heuristicPolicy.ts`, `jevPolicy.ts`,
 `policyRunner.ts`, `config.ts`. `MatchRoom` có nhánh async + guard chống đánh 2 lần
@@ -857,10 +857,10 @@ MatchRoom (1 trận)
 
 | Phase | Server làm gì | Client làm gì |
 |---|---|---|
-| `draft` | Timer 30s/pick, validate lượt, broadcast picks (live) | Tap roster |
-| `ban` | Timer 20s, **giữ ban ẩn**, resolve đồng thời | Tap 1 tướng địch |
+| `draft` | Timer 20s/pick, validate lượt, broadcast picks (live) | Tap roster |
+| `ban` | Timer 15s, **giữ ban ẩn**, resolve đồng thời | Tap 1 tướng địch |
 | (transition) | `commitDraft` fire-and-forget lên Fuji, không block | Hiện "Đang commit draft…" + link Snowtrace |
-| `battle` | Board authoritative, timer 20s, resolve swap/cascade | Render board, chọn skill/target/swap |
+| `battle` | Board authoritative, timer 15s, resolve swap/cascade | Render board, chọn skill/target/swap |
 | `result` | Tính rank delta (+25/−15), ghi JSON | Màn hình kết quả |
 
 **Timeout tự động** (chống AFK): hết giờ pick/ban → random hợp lệ; hết giờ lượt → bot chọn nước đi tốt nhất. **Disconnect**: giữ 20s, quá hạn xử thua.
@@ -1309,6 +1309,7 @@ Các quyết định **đã chốt**, dùng để chặn tranh luận lại gi�
 | **D-24** | **Draft snake-8** (P1→P2→P2→P1→P1→P2→P2→P1), pool 16 P2, kết thúc pick theo `PICKS_PER_SIDE × 2` thay vì `ROSTER_SIZE` | Loại bỏ lợi thế last-pick của P2; pool 16 đủ cho 4 pick/bên + 1 ban/bên; mở đường lên 20 mà không sửa logic draft | 25/10 |
 | **D-25** | **P2 roster**: Cleaver, Pyromancer, Venomancer, Oracle; thêm Burn/Poison/DOT_DOWN/Cleanse, Healer overheal → shield | Meta AoE/DoT; Oracle là cleanse chống DoT; Controller giảm 25% DoT | 25/10 |
 | **D-26** | **P3 roster**: Necromancer, Chronarch, Spellbreaker, Berserker; thêm Thrall, CD manipulation, mana drain, skill tax, missing-HP scaling; pool đủ 20 | Hoàn tất roster 20; Thrall tạo áp lực target thứ hai; Chronarch/Spellbreaker tạo meta tempo/mana; Berserker là bruiser risk-reward | 25/10 |
+| **D-27** | **Balance patch 2 (25/10)**: chỉ đổi HP/ATK/DEF (không đổi cost/CD), start mana 25→30, timer 20→15s, pick 30→20s, ban 20→15s, **random first turn** (`BATTLE_FIRST=random`) | 5.000 trận: P1/P2 **49,8/50,2%**, hero **46,7–53,8%** (trước: 31,5–72,6%). 1.000 trận @15s: **9m43s/trận** (median 9m15s), SD 3,3%, **6,0 skill/trận**, 21,9% lượt có skill. Draft first-pick không còn lợi thế rõ; battle-first được random hoá thay vì buff P2 | 25/10 |
 
 ### Những gì đã cắt khỏi bản v1 (và lý do)
 

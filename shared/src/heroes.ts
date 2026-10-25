@@ -24,55 +24,55 @@ const passive = (id: string, name: string, desc: string): PassiveDef => ({ id, n
 export const ROSTER: readonly HeroDef[] = [
   {
     archetype: 'Tank',
-    hp: 1440,
-    atk: 60,
-    def: 60,
+    hp: 1242,
+    atk: 56,
+    def: 56,
     skill: skill('TAUNT', 'Taunt', 32, 3, 'Kéo toàn bộ target của địch về mình trong 1 lượt.', 'none'),
     passive: passive('TANK_RESOLVE', 'Resolve', '+30% DEF khi HP < 50%.'),
   },
   {
     archetype: 'Burst',
-    hp: 720,
-    atk: 144,
-    def: 15,
+    hp: 630,
+    atk: 132,
+    def: 14,
     skill: skill('NUKE', 'Nuke', 40, 3, 'Gây 3× ATK lên 1 target.'),
     passive: passive('BURST_FOCUS', 'Focus', '+20% ATK khi cả 3 tướng còn sống.'),
   },
   {
     archetype: 'Healer',
-    hp: 880,
-    atk: 48,
-    def: 25,
+    hp: 930,
+    atk: 55,
+    def: 28,
     skill: skill('MASS_HEAL', 'Mass Heal', 48, 4, 'Hồi 40% maxHP cho cả đội.', 'none'),
     passive: passive('HEALER_DRIP', 'Drip', 'Tự hồi 5% maxHP đầu mỗi lượt.'),
   },
   {
     archetype: 'Controller',
-    hp: 800,
-    atk: 72,
-    def: 20,
+    hp: 940,
+    atk: 88,
+    def: 26,
     skill: skill('WEAKEN', 'Weaken', 32, 3, 'Giảm 50% ATK của target trong 2 lượt.'),
     passive: passive('CTRL_SIPHON', 'Siphon', 'Skill trúng → +10 mana cho đội.'),
   },
   {
     archetype: 'Buffer',
-    hp: 800,
-    atk: 60,
-    def: 30,
+    hp: 820,
+    atk: 64,
+    def: 34,
     skill: skill('RALLY', 'Rally', 40, 3, '+30% ATK và shield 20% maxHP cho cả đội trong 2 lượt.', 'none'),
     passive: passive('BUFFER_AURA', 'Aura', 'Cả đội +10% ATK.'),
   },
   {
     archetype: 'Debuffer',
-    hp: 760,
-    atk: 66,
-    def: 20,
+    hp: 940,
+    atk: 86,
+    def: 26,
     skill: skill('STRIP', 'Strip', 32, 3, 'Giảm 50% DEF của target trong 2 lượt.'),
     passive: passive('DEBUFF_EXPLOIT', 'Exploit', 'Cả đội +15% damage lên target đang bị debuff.'),
   },
   {
     archetype: 'Assassin',
-    hp: 680,
+    hp: 630,
     atk: 120,
     def: 10,
     skill: skill('EXECUTE', 'Execute', 40, 3, '2.5× ATK, bỏ qua 50% DEF, đánh tướng HP thấp nhất.'),
@@ -80,18 +80,18 @@ export const ROSTER: readonly HeroDef[] = [
   },
   {
     archetype: 'Bruiser',
-    hp: 1120,
-    atk: 96,
-    def: 35,
+    hp: 960,
+    atk: 82,
+    def: 30,
     skill: skill('LIFESTEAL_STRIKE', 'Lifesteal Strike', 36, 3, '2× ATK và hồi 50% damage gây ra.'),
     passive: passive('BRUISER_LEECH', 'Leech', 'Cả đội +15% lifesteal khi đánh thường.'),
   },
   // ── P1: 4 hero mới ────────────────────────────────────────────────────
   {
     archetype: 'Paladin',
-    hp: 1400,
-    atk: 66,
-    def: 55,
+    hp: 1240,
+    atk: 64,
+    def: 52,
     skill: skill(
       'DIVINE_AEGIS',
       'Divine Aegis',
@@ -105,9 +105,9 @@ export const ROSTER: readonly HeroDef[] = [
   },
   {
     archetype: 'Juggernaut',
-    hp: 1520,
-    atk: 54,
-    def: 65,
+    hp: 1320,
+    atk: 48,
+    def: 58,
     skill: skill(
       'IRON_THORNS',
       'Iron Thorns',
@@ -120,9 +120,9 @@ export const ROSTER: readonly HeroDef[] = [
   },
   {
     archetype: 'Executioner',
-    hp: 800,
-    atk: 114,
-    def: 20,
+    hp: 702,
+    atk: 108,
+    def: 18,
     skill: skill(
       'SEVER',
       'Sever',
@@ -134,7 +134,7 @@ export const ROSTER: readonly HeroDef[] = [
   },
   {
     archetype: 'Sniper',
-    hp: 640,
+    hp: 576,
     atk: 138,
     def: 12,
     skill: skill(
@@ -149,8 +149,8 @@ export const ROSTER: readonly HeroDef[] = [
   // ── P2: 4 hero AoE / DoT / cleanse ────────────────────────────────────
   {
     archetype: 'Cleaver',
-    hp: 784,
-    atk: 126,
+    hp: 702,
+    atk: 122,
     def: 15,
     skill: skill(
       'AMPUTATION',
@@ -164,9 +164,9 @@ export const ROSTER: readonly HeroDef[] = [
   },
   {
     archetype: 'Pyromancer',
-    hp: 760,
-    atk: 90,
-    def: 20,
+    hp: 870,
+    atk: 98,
+    def: 24,
     skill: skill(
       'IGNITE',
       'Ignite',
@@ -178,9 +178,9 @@ export const ROSTER: readonly HeroDef[] = [
   },
   {
     archetype: 'Venomancer',
-    hp: 840,
-    atk: 72,
-    def: 25,
+    hp: 1020,
+    atk: 92,
+    def: 30,
     skill: skill(
       'TOXIC_MIASMA',
       'Toxic Miasma',
@@ -193,9 +193,9 @@ export const ROSTER: readonly HeroDef[] = [
   },
   {
     archetype: 'Oracle',
-    hp: 920,
-    atk: 42,
-    def: 28,
+    hp: 1060,
+    atk: 60,
+    def: 32,
     skill: skill(
       'MEND',
       'Mend',
@@ -209,9 +209,9 @@ export const ROSTER: readonly HeroDef[] = [
   // ── P3: summon / tempo / mana / risk ─────────────────────────────────
   {
     archetype: 'Necromancer',
-    hp: 760,
-    atk: 72,
-    def: 20,
+    hp: 920,
+    atk: 88,
+    def: 26,
     skill: skill(
       'RAISE_THRALL',
       'Raise Thrall',
@@ -224,9 +224,9 @@ export const ROSTER: readonly HeroDef[] = [
   },
   {
     archetype: 'Chronarch',
-    hp: 800,
-    atk: 60,
-    def: 25,
+    hp: 1040,
+    atk: 84,
+    def: 30,
     skill: skill(
       'TIME_WARP',
       'Time Warp',
@@ -239,9 +239,9 @@ export const ROSTER: readonly HeroDef[] = [
   },
   {
     archetype: 'Spellbreaker',
-    hp: 920,
-    atk: 78,
-    def: 30,
+    hp: 970,
+    atk: 85,
+    def: 33,
     skill: skill(
       'MANA_DRAIN',
       'Mana Drain',
@@ -253,9 +253,9 @@ export const ROSTER: readonly HeroDef[] = [
   },
   {
     archetype: 'Berserker',
-    hp: 1200,
-    atk: 108,
-    def: 25,
+    hp: 980,
+    atk: 84,
+    def: 22,
     skill: skill(
       'RECKLESS_SWING',
       'Reckless Swing',

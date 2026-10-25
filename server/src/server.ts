@@ -30,6 +30,8 @@ export interface StartOptions {
   chain?: ChainClient | null;
   /** undefined = tự đọc env; null = tắt policy (bot heuristic đồng bộ). */
   botPolicyFactory?: BotPolicyFactory | null;
+  /** Ai đi trước battle. Mặc định random từ env BATTLE_FIRST. */
+  firstSide?: Side | 'random';
 }
 
 export interface GameServer {
@@ -80,6 +82,10 @@ export async function startGameServer(options: StartOptions = {}): Promise<GameS
     options.botPolicyFactory === undefined
       ? createBotPolicyFactory()
       : options.botPolicyFactory;
+  const envFirstSide = process.env.BATTLE_FIRST?.trim();
+  const firstSide =
+    options.firstSide ??
+    (envFirstSide === 'P1' || envFirstSide === 'P2' ? envFirstSide : 'random');
 
   const rooms = new Set<MatchRoom>();
   const intervals = new Map<MatchRoom, NodeJS.Timeout>();
@@ -171,6 +177,7 @@ export async function startGameServer(options: StartOptions = {}): Promise<GameS
       timings,
       rng: roomRng,
       botPolicy,
+      firstSide,
       onFinished: (finishedRoom) => {
         const timer = intervals.get(finishedRoom);
         if (timer) clearInterval(timer);

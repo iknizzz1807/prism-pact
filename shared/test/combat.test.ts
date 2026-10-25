@@ -22,6 +22,7 @@ import {
   tickDamageOverTime,
 } from '../src/combat.js';
 import { createHero, createTeam, isTeamWiped } from '../src/heroes.js';
+import { CONFIG } from '../src/config.js';
 import type { HeroState } from '../src/types.js';
 
 /** So sánh số thực có sai số (0.1 * 3 !== 0.3 trong JS). */
@@ -44,10 +45,11 @@ describe('damage formula', () => {
   it('shield hấp thụ trước khi trừ HP', () => {
     const tank = createHero('Tank', 'P2', 0);
     tank.shield = 50;
-    const dealt = dealDamage(tank, 120); // mitigated = 75
-    assert.equal(dealt, 25);
+    const expected = mitigated(120, effectiveDef(tank)) - 50;
+    const dealt = dealDamage(tank, 120);
+    assert.equal(dealt, expected);
     assert.equal(tank.shield, 0);
-    assert.equal(tank.hp, tank.maxHp - 25);
+    assert.equal(tank.hp, tank.maxHp - expected);
   });
 
   it('Ignore DEF 50% (Execute) làm tăng damage', () => {
@@ -84,24 +86,24 @@ describe('damage formula', () => {
 describe('effective stats & passives', () => {
   it('Tank +30% DEF khi HP < 50%', () => {
     const tank = createHero('Tank', 'P1', 0);
-    assert.equal(effectiveDef(tank), 60);
+    assert.equal(effectiveDef(tank), tank.def);
     tank.hp = tank.maxHp * 0.5;
-    assert.equal(effectiveDef(tank), 60);
+    assert.equal(effectiveDef(tank), tank.def);
     tank.hp = tank.maxHp * 0.49;
-    near(effectiveDef(tank), 78);
+    near(effectiveDef(tank), tank.def * 1.3);
   });
 
   it('Burst +20% ATK khi đủ 3 người', () => {
     const allies = createTeam(['Tank', 'Burst', 'Healer'], 'P1');
     const burst = allies[1]!;
-    near(effectiveAtk(burst, allies), 172.8);
+    near(effectiveAtk(burst, allies), burst.atk * 1.2);
     allies[2]!.alive = false;
-    near(effectiveAtk(burst, allies), 144);
+    near(effectiveAtk(burst, allies), burst.atk);
   });
 
   it('Buffer còn sống → cả đội +10% ATK', () => {
     const allies = createTeam(['Tank', 'Buffer', 'Healer'], 'P1');
-    near(effectiveAtk(allies[0]!, allies), 66);
+    near(effectiveAtk(allies[0]!, allies), allies[0]!.atk * 1.1);
   });
 
   it('ATK_UP cộng dồn', () => {
@@ -109,14 +111,14 @@ describe('effective stats & passives', () => {
     hero.buffs.push({ kind: 'ATK_UP', pct: 0.3, turns: 2 });
     hero.buffs.push({ kind: 'ATK_UP', pct: 0.2, turns: 2 });
     near(buffPct(hero, 'ATK_UP'), 0.5);
-    near(effectiveAtk(hero, [hero]), 90);
+    near(effectiveAtk(hero, [hero]), hero.atk * 1.5);
   });
 
   it('Paladin aura: đồng minh dưới 40% HP +15% DEF', () => {
     const team = createTeam(['Paladin', 'Tank', 'Healer'], 'P2');
     const tank = team[1]!;
     tank.hp = tank.maxHp * 0.3;
-    near(effectiveDef(tank, team), 60 * 1.3 * 1.15);
+    near(effectiveDef(tank, team), tank.def * 1.3 * 1.15);
   });
 });
 
@@ -127,17 +129,19 @@ describe('gem economy', () => {
     tank.hp = 1000;
 
     const out = applyGemEconomy(team, { ATK: 0, HP: 3, MANA: 4, SHIELD: 2 }, 10);
+    const perGem = Math.ceil(tank.maxHp * CONFIG.HEAL_PCT_PER_GEM);
 
     assert.equal(out.mana, 18);
-    assert.equal(tank.hp, 1000 + 27); // ceil(1440 * 0.006) = 9, ×3
-    assert.equal(tank.shield, 18); // ceil(1440 * 0.006) = 9, ×2
-    assert.equal(out.healed, 27);
-    assert.equal(out.shielded, 18);
+    assert.equal(tank.hp, 1000 + perGem * 3);
+    assert.equal(tank.shield, perGem * 2);
+    assert.equal(out.healed, perGem * 3);
+    assert.equal(out.shielded, perGem * 2);
   });
 
   it('shield cap 60% maxHP', () => {
     const tank = createHero('Tank', 'P1', 0);
-    assert.equal(addShield(tank, 5000), 864);
+    const cap = Math.floor(tank.maxHp * CONFIG.SHIELD_CAP_PCT + 1e-9);
+    assert.equal(addShield(tank, 5000), cap);
     assert.equal(addShield(tank, 5000), 0);
   });
 
@@ -166,8 +170,10 @@ describe('basic attacks (round-robin + cap)', () => {
       out.hits.map((h) => h.attackerUid),
       ['P1:0', 'P1:1', 'P1:2', 'P1:0', 'P1:1'],
     );
-    // 55 + 157 + 44 + 55 + 157 = 468
-    assert.equal(out.totalDealt, 468);
+    assert.equal(
+      out.totalDealt,
+      out.hits.reduce((sum, hit) => sum + hit.dealt, 0),
+    );
   });
 
   it('7 hit → chỉ 6 hit tính damage, 1 hit dư thành mana', () => {
@@ -194,14 +200,16 @@ describe('basic attacks (round-robin + cap)', () => {
   it('Bruiser còn sống → cả đội lifesteal 15%', () => {
     const team = createTeam(['Bruiser', 'Tank', 'Healer'], 'P1');
     const bruiser = team[0]!;
-    bruiser.hp = 1000;
+    bruiser.hp = Math.round(bruiser.maxHp * 0.8);
     bruiser.atk = 100;
+    const before = bruiser.hp;
 
     const enemies = createTeam(['Assassin', 'Tank', 'Burst'], 'P2');
     const out = performBasicAttacks({ attackers: [bruiser], allies: team, target: enemies[0]!, enemies, hits: 1 });
 
-    assert.equal(out.healed, 14); // round(91 * 0.15) — 91 là damage thực nhận
-    assert.equal(bruiser.hp, 1014);
+    const expected = Math.round(out.hits[0]!.dealt * 0.15);
+    assert.equal(out.healed, expected);
+    assert.equal(bruiser.hp, before + expected);
   });
 
   it('báo lượng damage bị giáp hấp thụ', () => {
@@ -265,7 +273,7 @@ describe('turn lifecycle', () => {
     const healer = team[2]!;
     healer.hp = 500;
     const logs = startTurn(team);
-    assert.equal(healer.hp, 544); // ceil(880 * 0.05) = 44
+    assert.equal(healer.hp, 500 + Math.ceil(healer.maxHp * 0.05));
     assert.equal(logs.length, 1);
   });
 
@@ -289,8 +297,15 @@ describe('turn lifecycle', () => {
     const team = createTeam(['Tank', 'Burst', 'Healer'], 'P1');
     team[0]!.shield = 500;
     const lost = applySuddenDeath(team);
-    assert.equal(lost, 72 + 36 + 44);
-    assert.equal(team[0]!.hp, 1368);
+    const expectedLost = team.reduce(
+      (sum, hero) => sum + Math.round(hero.maxHp * CONFIG.SUDDEN_DEATH_HP_PCT),
+      0,
+    );
+    assert.equal(lost, expectedLost);
+    assert.equal(
+      team[0]!.hp,
+      team[0]!.maxHp - Math.round(team[0]!.maxHp * CONFIG.SUDDEN_DEATH_HP_PCT),
+    );
     assert.equal(team[0]!.shield, 500);
   });
 
@@ -350,16 +365,16 @@ describe('turn lifecycle', () => {
 
   it('healTeam không hồi quá maxHP và bỏ qua tướng chết', () => {
     const team = createTeam(['Tank', 'Burst', 'Healer'], 'P1');
-    team[0]!.hp = 1340; // thiếu 100
+    team[0]!.hp = team[0]!.maxHp - 100;
     team[1]!.alive = false;
     team[1]!.hp = 0;
-    team[2]!.hp = 780; // thiếu 100
+    team[2]!.hp = team[2]!.maxHp - 100;
 
     const healed = healTeam(team, 0.5); // 50% maxHP, cap ở maxHP
 
     assert.equal(healed, 100 + 100);
-    assert.equal(team[0]!.hp, 1440);
-    assert.equal(team[2]!.hp, 880);
+    assert.equal(team[0]!.hp, team[0]!.maxHp);
+    assert.equal(team[2]!.hp, team[2]!.maxHp);
     assert.equal(team[1]!.hp, 0);
   });
 

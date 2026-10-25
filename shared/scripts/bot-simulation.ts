@@ -81,6 +81,7 @@ const ANIMATION_PER_WAVE_MS = 850;
 // Client pick/ban animation chạy overlap với timer kế tiếp; đây chỉ là tham khảo.
 const PICK_ANIM_MS = 320;
 const BAN_REVEAL_MS = 2200;
+const DRAFT_ANIM_SERIAL_MS = CONFIG.PICKS_PER_SIDE * 2 * PICK_ANIM_MS + BAN_REVEAL_MS;
 
 const args = process.argv.slice(2);
 const requestedMatches = Math.floor(Number(args[0] ?? 1000));
@@ -92,6 +93,17 @@ const baseSeed = (Number.isFinite(requestedSeed) ? Math.max(0, requestedSeed) : 
 const minUse = clamp(Number(args[2] ?? 0.8), 0, 1);
 const maxUse = Math.max(minUse, clamp(Number(args[3] ?? 0.9), 0, 1));
 const skillChance = clamp(Number(args[4] ?? 0.7), 0, 1);
+const turnMs = Math.max(1, Number(args[5] ?? CONFIG.TURN_TIME_MS));
+const pickMs = Math.max(1, Number(args[6] ?? CONFIG.DRAFT_PICK_TIME_MS));
+const banMs = Math.max(1, Number(args[7] ?? CONFIG.DRAFT_BAN_TIME_MS));
+const startMana = Math.max(0, Number(args[8] ?? CONFIG.STARTING_MANA));
+const manaPerGem = Math.max(0, Number(args[9] ?? CONFIG.MANA_PER_GEM));
+
+(CONFIG as unknown as { TURN_TIME_MS: number }).TURN_TIME_MS = turnMs;
+(CONFIG as unknown as { DRAFT_PICK_TIME_MS: number }).DRAFT_PICK_TIME_MS = pickMs;
+(CONFIG as unknown as { DRAFT_BAN_TIME_MS: number }).DRAFT_BAN_TIME_MS = banMs;
+(CONFIG as unknown as { STARTING_MANA: number }).STARTING_MANA = startMana;
+(CONFIG as unknown as { MANA_PER_GEM: number }).MANA_PER_GEM = manaPerGem;
 
 function clamp(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
@@ -139,6 +151,8 @@ function runMatch(seed: number): MatchResult | null {
   );
   state.sides.P1.mana = CONFIG.STARTING_MANA;
   state.sides.P2.mana = CONFIG.STARTING_MANA;
+  // Công bằng side: mỗi bên 50% đi trước, thay vì luôn P1.
+  state.active = rng() < 0.5 ? 'P1' : 'P2';
 
   const battleFirst = state.active;
   let battleThinkingMs = 0;
@@ -414,7 +428,7 @@ console.log(
     2,
   )} · turnUse=${(minUse * 100).toFixed(0)}–${(maxUse * 100).toFixed(0)}% · TURN_MS=${
     CONFIG.TURN_TIME_MS
-  }`,
+  } · startMana=${startMana} · mana/gem=${manaPerGem}`,
 );
 console.log(
   `Draft: pick ${(CONFIG.DRAFT_PICK_TIME_MS / 1000).toFixed(0)}s tuần tự, ban ${
@@ -508,6 +522,11 @@ printStats('Draft timer (pick/ban)', draftTime, formatDuration);
 printStats('Battle thinking (80-90%)', battleThinking, formatDuration);
 printStats('Battle + animation', battleWall, formatDuration);
 printStats('Full match (draft+battle)', fullWall, formatDuration);
+printStats(
+  'Full + pick/ban anim',
+  stats(results.map((r) => r.fullWallMs + DRAFT_ANIM_SERIAL_MS)),
+  formatDuration,
+);
 console.log(
   `  Battle animation/trận: ${(
     results.reduce((sum, r) => sum + r.battleAnimationMs, 0) /
@@ -515,16 +534,15 @@ console.log(
     1000
   ).toFixed(1)}s (đã cộng trong Battle + animation và Full match)`,
 );
-const serialDraftAnimMs = CONFIG.PICKS_PER_SIDE * 2 * PICK_ANIM_MS + BAN_REVEAL_MS;
 console.log(
   `  Pick/ban animation: ~${(PICK_ANIM_MS / 1000).toFixed(2)}s/pick + reveal ${(
     BAN_REVEAL_MS / 1000
   ).toFixed(1)}s — chạy overlap timer kế tiếp nên KHÔNG cộng vào Full match.`,
 );
 console.log(
-  `  Nếu cộng cứng worst-case: +${(serialDraftAnimMs / 1000).toFixed(
+  `  Nếu cộng cứng worst-case: +${(DRAFT_ANIM_SERIAL_MS / 1000).toFixed(
     1,
-  )}s/trận → full mean ${formatDuration(fullWall.mean + serialDraftAnimMs)}.`,
+  )}s/trận → full mean ${formatDuration(fullWall.mean + DRAFT_ANIM_SERIAL_MS)}.`,
 );
 console.log('');
 

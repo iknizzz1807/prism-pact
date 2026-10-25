@@ -4,13 +4,24 @@
  * Chạy:
  *   node --import tsx shared/scripts/hero-balance.ts 5000
  */
+import { readFileSync } from 'node:fs';
+
 import { CONFIG } from '../src/config.js';
 import { mulberry32 } from '../src/rng.js';
 import { createBattle, playTurn } from '../src/battle.js';
 import { chooseAction } from '../src/bot.js';
 import { ROSTER } from '../src/heroes.js';
 import { autoBan, autoPick, createDraft, finalTeams } from '../src/draft.js';
+import { otherSide } from '../src/side.js';
 import type { Archetype, Side } from '../src/types.js';
+
+interface BalanceOverride {
+  hp?: number;
+  atk?: number;
+  def?: number;
+  skillMana?: number;
+  skillCd?: number;
+}
 
 interface HeroStat {
   picked: number;
@@ -28,6 +39,37 @@ interface HeroStat {
 const args = process.argv.slice(2);
 const matchCount = Math.max(1, Number(args[0] ?? 5000));
 const baseSeed = Number(args[1] ?? 20261025);
+const overridePath = args[2];
+const p2ManaBonus = Math.max(0, Number(args[3] ?? 0));
+const p2HpPct = Math.max(1, Number(args[4] ?? 1));
+const battleFirstMode = (args[5] ?? 'p1') as 'p1' | 'p2' | 'random' | 'secondPick';
+const startMana = Math.max(0, Number(args[6] ?? CONFIG.STARTING_MANA));
+const manaPerGem = Math.max(0, Number(args[7] ?? CONFIG.MANA_PER_GEM));
+
+(CONFIG as unknown as { STARTING_MANA: number }).STARTING_MANA = startMana;
+(CONFIG as unknown as { MANA_PER_GEM: number }).MANA_PER_GEM = manaPerGem;
+
+if (overridePath) {
+  const overrides = JSON.parse(readFileSync(overridePath, 'utf8')) as Record<
+    string,
+    BalanceOverride
+  >;
+  for (const hero of ROSTER as unknown as Array<{
+    archetype: Archetype;
+    hp: number;
+    atk: number;
+    def: number;
+    skill: { mana: number; cd: number };
+  }>) {
+    const override = overrides[hero.archetype];
+    if (!override) continue;
+    if (override.hp !== undefined) hero.hp = override.hp;
+    if (override.atk !== undefined) hero.atk = override.atk;
+    if (override.def !== undefined) hero.def = override.def;
+    if (override.skillMana !== undefined) hero.skill.mana = override.skillMana;
+    if (override.skillCd !== undefined) hero.skill.cd = override.skillCd;
+  }
+}
 
 const stats = new Map<Archetype, HeroStat>();
 for (const hero of ROSTER) {
@@ -79,6 +121,20 @@ for (let i = 0; i < matchCount; i++) {
   if (p1.length !== 3 || p2.length !== 3) continue;
 
   const state = createBattle(p1, p2, rng);
+  if (battleFirstMode === 'p2') state.active = 'P2';
+  else if (battleFirstMode === 'random') state.active = rng() < 0.5 ? 'P1' : 'P2';
+  else if (battleFirstMode === 'secondPick') {
+    state.active = otherSide(draft.pickOrder[0]!);
+  }
+  if (p2ManaBonus > 0) {
+    state.sides.P2.mana = Math.min(CONFIG.MANA_MAX, state.sides.P2.mana + p2ManaBonus);
+  }
+  if (p2HpPct !== 1) {
+    for (const hero of state.sides.P2.heroes) {
+      hero.maxHp = Math.round(hero.maxHp * p2HpPct);
+      hero.hp = hero.maxHp;
+    }
+  }
   let rejected = 0;
   let battleGuard = 0;
   while (state.winner === null && battleGuard++ < CONFIG.MAX_TURNS * 3) {
@@ -133,7 +189,14 @@ const rows = [...stats.entries()].map(([hero, s]) => {
   return { hero, ...s, winRate, lo, hi };
 });
 
-console.log(`PRISM PACT — HERO BALANCE (${matchCount} trận, seed ${baseSeed})`);
+console.log(
+  `PRISM PACT — HERO BALANCE (${matchCount} trận, seed ${baseSeed}` +
+    `${overridePath ? `, overrides=${overridePath}` : ''}` +
+    `${p2ManaBonus > 0 ? `, P2 +${p2ManaBonus} mana` : ''}` +
+    `${p2HpPct !== 1 ? `, P2 HP×${p2HpPct}` : ''}` +
+    `${battleFirstMode !== 'p1' ? `, battleFirst=${battleFirstMode}` : ''}` +
+    `, startMana=${startMana}, manaGem=${manaPerGem})`,
+);
 console.log(
   `Tổng lượt mean ${(totalTurns / matchCount).toFixed(1)} · SD ${((suddenDeath / matchCount) * 100).toFixed(1)}% · ` +
     `P1 ${((p1Wins / matchCount) * 100).toFixed(1)}% · P2 ${((p2Wins / matchCount) * 100).toFixed(1)}% · draw ${((draws / matchCount) * 100).toFixed(1)}% · ` +

@@ -73,11 +73,12 @@ export function createBattle(
   p2: [Archetype, Archetype, Archetype],
   rng: Rng = mulberry32(Date.now()),
   board: Board = createBoard(rng),
+  firstSide: Side = 'P1',
 ): BattleState {
   return {
     board,
     sides: { P1: makeSide('P1', p1), P2: makeSide('P2', p2) },
-    active: 'P1',
+    active: firstSide,
     turn: 0,
     suddenDeath: false,
     winner: null,

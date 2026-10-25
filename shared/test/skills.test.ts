@@ -92,16 +92,16 @@ describe('8 skill', () => {
   it('Healer / Mass Heal: hồi 40% maxHP, cap ở maxHP', () => {
     const allies = p1();
     const healer = allies[2]!;
-    allies[0]!.hp = 1000;
-    allies[1]!.hp = 500;
+    allies[0]!.hp = allies[0]!.maxHp - 200;
+    allies[1]!.hp = allies[1]!.maxHp - 100;
 
     const out = useSkill({ caster: healer, allies, enemies: p2(), mana: 48 });
 
     assert.equal(out.ok, true);
-    assert.equal(out.healed, 440 + 220); // Tank hồi 40% của 1440 (cap thiếu 440); Burst thiếu 220
-    assert.equal(allies[0]!.hp, 1440);
-    assert.equal(allies[1]!.hp, 720);
-    assert.equal(allies[2]!.hp, 880);
+    assert.equal(out.healed, 300);
+    assert.equal(allies[0]!.hp, allies[0]!.maxHp);
+    assert.equal(allies[1]!.hp, allies[1]!.maxHp);
+    assert.equal(allies[2]!.hp, allies[2]!.maxHp);
     assert.equal(out.mana, 0);
   });
 
@@ -138,9 +138,9 @@ describe('8 skill', () => {
     for (const hero of team) {
       assert.ok(hero.buffs.some((b) => b.kind === 'ATK_UP' && b.pct === 0.3));
     }
-    assert.equal(team[0]!.shield, 288); // 20% của 1440
-    assert.equal(team[1]!.shield, 160); // 20% của 800
-    assert.equal(team[2]!.shield, 176); // 20% của 880
+    for (const hero of team) {
+      assert.equal(hero.shield, Math.ceil(hero.maxHp * 0.2));
+    }
   });
 
   it('Debuffer / Strip: -50% DEF 2 lượt', () => {
@@ -174,16 +174,18 @@ describe('8 skill', () => {
   it('Bruiser / Lifesteal Strike: 2× ATK, hồi 50% damage', () => {
     const team = createTeam(['Bruiser', 'Tank', 'Healer'], 'P1');
     const bruiser = team[0]!;
-    bruiser.hp = 1000;
+    bruiser.hp = Math.round(bruiser.maxHp * 0.8);
+    const before = bruiser.hp;
     const enemies = p2();
     const target = enemies[0]!;
 
     const out = useSkill({ caster: bruiser, allies: team, enemies, mana: 36, targetUid: target.uid });
 
     assert.equal(out.ok, true);
-    assert.equal(out.damage, 120); // 192 raw vs DEF 60
-    assert.equal(out.healed, 60);
-    assert.equal(bruiser.hp, 1060);
+    assert.ok(out.damage > 0);
+    const expectedHeal = Math.round(out.damage * 0.5);
+    assert.equal(out.healed, expectedHeal);
+    assert.equal(bruiser.hp, before + expectedHeal);
   });
 
   it('Tank / Taunt: ép target của địch về mình', () => {

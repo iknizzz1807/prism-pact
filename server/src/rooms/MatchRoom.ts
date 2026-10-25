@@ -59,6 +59,8 @@ export interface MatchRoomOptions {
   chain?: ChainClient | null;
   /** Policy cấp cao cho bot (Jev + fallback). undefined/null = bot heuristic cũ. */
   botPolicy?: BotPolicy | null;
+  /** Ai đi trước battle. 'random' = 50/50 mỗi trận; mặc định P1 cho test cũ. */
+  firstSide?: Side | 'random';
   onFinished?: (room: MatchRoom) => void;
 }
 
@@ -83,6 +85,7 @@ export class MatchRoom {
   private readonly ranking?: RankingStore;
   private readonly chain: ChainClient | null;
   private readonly botPolicy: BotPolicy | null;
+  private readonly firstSide: Side | 'random';
   private readonly onFinished?: (room: MatchRoom) => void;
   private readonly botSide: Side | null;
   private readonly matchSalt: string;
@@ -112,6 +115,7 @@ export class MatchRoom {
     this.ranking = options.ranking;
     this.chain = options.chain ?? null;
     this.botPolicy = options.botPolicy ?? null;
+    this.firstSide = options.firstSide ?? 'P1';
     this.onFinished = options.onFinished;
     this.botSide = players.find((p) => p.isBot)?.side ?? null;
     this.matchSalt = Math.random().toString(16).slice(2).padEnd(16, '0');
@@ -318,10 +322,18 @@ export class MatchRoom {
 
   private startBattle(events: string[] = []): void {
     const teams = finalTeams(this.draft);
+    const firstSide =
+      this.firstSide === 'random'
+        ? this.rng() < 0.5
+          ? 'P1'
+          : 'P2'
+        : this.firstSide;
     this.battle = createBattle(
       teams.P1 as [Archetype, Archetype, Archetype],
       teams.P2 as [Archetype, Archetype, Archetype],
       this.rng,
+      undefined,
+      firstSide,
     );
     this.phase = 'battle';
     this.deadline = this.now() + this.timings.turnMs;

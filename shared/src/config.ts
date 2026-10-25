@@ -11,9 +11,9 @@ export const CONFIG = {
   GEM_SPAWN_WEIGHT: { ATK: 0.3, HP: 7 / 30, MANA: 7 / 30, SHIELD: 7 / 30 } as const,
 
   // ── Timing (ms) — server dùng, client chỉ đọc để render timer ────────
-  TURN_TIME_MS: 20_000,
-  DRAFT_PICK_TIME_MS: 30_000,
-  DRAFT_BAN_TIME_MS: 20_000,
+  TURN_TIME_MS: 15_000,
+  DRAFT_PICK_TIME_MS: 20_000,
+  DRAFT_BAN_TIME_MS: 15_000,
   RECONNECT_GRACE_MS: 20_000,
 
   // ── Match rules ─────────────────────────────────────────────────────
@@ -30,7 +30,7 @@ export const CONFIG = {
   // ── Gem values ──────────────────────────────────────────────────────
   MANA_PER_GEM: 2,
   MANA_MAX: 100,
-  STARTING_MANA: 25, // mana đầu trận cho mỗi bên
+  STARTING_MANA: 30, // mana đầu trận cho mỗi bên
   HEAL_PCT_PER_GEM: 0.006, // +0.6% maxHP/tướng mỗi gem 🩸
   SHIELD_PCT_PER_GEM: 0.006, // +0.6% maxHP/tướng mỗi gem 🛡️
   SHIELD_CAP_PCT: 0.6, // 60% maxHP/tướng
