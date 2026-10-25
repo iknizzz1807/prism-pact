@@ -278,8 +278,8 @@ client/src/
     - **Chỉ đổi HP/ATK/DEF**, không đổi skill cost/CD: nerf Berserker/Bruiser/Juggernaut/Burst/Tank/Executioner/Paladin/Cleaver/Sniper/Assassin; buff Chronarch/Debuffer/Oracle/Venomancer/Necromancer/Controller/Pyromancer/Buffer/Spellbreaker/Healer.
     - **Start mana 25→30**; mana/gem giữ 2; skill cost/CD giữ nguyên.
     - **Timer**: turn 20→15s, pick 30→20s, ban 20→15s.
-    - **Random first turn** (`BATTLE_FIRST=random`): P1/P2 49,8/50,2%; draft first-pick không còn lợi thế rõ. Không buff P2 mana/HP.
-    - 5.000 trận validation: hero win rate **46,7–53,8%** (trước 31,5–72,6%), P1/P2 **49,8/50,2%**, 27,3 lượt/trận, 5,97 skill/trận.
-    - 1.000 trận @15s: full match **9m43s** (median 9m15s, p90 13m33s), SD 3,3%, **6,0 skill/trận**, 21,9% lượt có skill; battle animation 86,3s/trận; pick/ban animation overlap timer (nếu cộng cứng +4,8s).
+    - **Random first turn** (`BATTLE_FIRST=random`) + **bên đi sau +20 mana**: first-turn 58,8% → **51,7%**, second-turn 48,3%; P1/P2 **50,0/50,0%**. Draft first-pick không còn lợi thế rõ.
+    - 5.000 trận validation: hero win rate **46,5–53,9%** (trước 31,5–72,6%), P1/P2 **50,0/50,0%**, 27,3 lượt/trận, 6,49 skill/trận.
+    - 1.000 trận @15s: full match **9m43s** (median 9m14s, p90 13m22s), SD 3,0%, **6,5 skill/trận**, 23,7% lượt có skill, skill đầu lượt 2,6; battle animation 86,2s/trận; pick/ban animation overlap timer (nếu cộng cứng +4,8s).
     - Kết luận thời gian: **không nên cắt đôi**. 15s + draft 20/15s đã giảm 12m43s → 9m43s. Muốn ~6–7 phút phải làm **Blitz mode** riêng (HP×0.8, ATK×1.15, MAX_TURNS 35), không dùng cho ranked.
     - Test: **106 shared + 19 contracts + 34 server = 159 pass**; typecheck + build sạch.

@@ -45,6 +45,11 @@ const p2HpPct = Math.max(1, Number(args[4] ?? 1));
 const battleFirstMode = (args[5] ?? 'p1') as 'p1' | 'p2' | 'random' | 'secondPick';
 const startMana = Math.max(0, Number(args[6] ?? CONFIG.STARTING_MANA));
 const manaPerGem = Math.max(0, Number(args[7] ?? CONFIG.MANA_PER_GEM));
+const secondManaBonus = Math.max(
+  0,
+  Number(args[8] ?? CONFIG.SECOND_TURN_MANA_BONUS),
+);
+const secondHpPct = Math.max(1, Number(args[9] ?? 1));
 
 (CONFIG as unknown as { STARTING_MANA: number }).STARTING_MANA = startMana;
 (CONFIG as unknown as { MANA_PER_GEM: number }).MANA_PER_GEM = manaPerGem;
@@ -98,6 +103,8 @@ let p1Wins = 0;
 let p2Wins = 0;
 let draws = 0;
 let skillUses = 0;
+let firstTurnWins = 0;
+let secondTurnWins = 0;
 
 for (let i = 0; i < matchCount; i++) {
   const rng = mulberry32(baseSeed + i);
@@ -126,6 +133,20 @@ for (let i = 0; i < matchCount; i++) {
   else if (battleFirstMode === 'secondPick') {
     state.active = otherSide(draft.pickOrder[0]!);
   }
+  const firstSide = state.active;
+  const secondSide = otherSide(firstSide);
+  if (secondManaBonus > 0) {
+    state.sides[secondSide].mana = Math.min(
+      CONFIG.MANA_MAX,
+      state.sides[secondSide].mana + secondManaBonus,
+    );
+  }
+  if (secondHpPct !== 1) {
+    for (const hero of state.sides[secondSide].heroes) {
+      hero.maxHp = Math.round(hero.maxHp * secondHpPct);
+      hero.hp = hero.maxHp;
+    }
+  }
   if (p2ManaBonus > 0) {
     state.sides.P2.mana = Math.min(CONFIG.MANA_MAX, state.sides.P2.mana + p2ManaBonus);
   }
@@ -147,6 +168,8 @@ for (let i = 0; i < matchCount; i++) {
 
   totalTurns += state.turn;
   if (state.suddenDeath) suddenDeath++;
+  if (state.winner === firstSide) firstTurnWins++;
+  else if (state.winner === secondSide) secondTurnWins++;
   if (state.winner === 'P1') p1Wins++;
   else if (state.winner === 'P2') p2Wins++;
   else draws++;
@@ -195,12 +218,16 @@ console.log(
     `${p2ManaBonus > 0 ? `, P2 +${p2ManaBonus} mana` : ''}` +
     `${p2HpPct !== 1 ? `, P2 HP×${p2HpPct}` : ''}` +
     `${battleFirstMode !== 'p1' ? `, battleFirst=${battleFirstMode}` : ''}` +
-    `, startMana=${startMana}, manaGem=${manaPerGem})`,
+    `, startMana=${startMana}, manaGem=${manaPerGem}` +
+    `${secondManaBonus > 0 ? `, second +${secondManaBonus} mana` : ''}` +
+    `${secondHpPct !== 1 ? `, second HP×${secondHpPct}` : ''})`,
 );
 console.log(
   `Tổng lượt mean ${(totalTurns / matchCount).toFixed(1)} · SD ${((suddenDeath / matchCount) * 100).toFixed(1)}% · ` +
     `P1 ${((p1Wins / matchCount) * 100).toFixed(1)}% · P2 ${((p2Wins / matchCount) * 100).toFixed(1)}% · draw ${((draws / matchCount) * 100).toFixed(1)}% · ` +
-    `skill ${(skillUses / matchCount).toFixed(2)}/trận`,
+    `skill ${(skillUses / matchCount).toFixed(2)}/trận · ` +
+    `first-turn ${((firstTurnWins / matchCount) * 100).toFixed(1)}% · ` +
+    `second-turn ${((secondTurnWins / matchCount) * 100).toFixed(1)}%`,
 );
 console.log('');
 console.log('Hero           Field  Pick  Ban   Win%   95% CI          P1 win  P2 win');

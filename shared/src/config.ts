@@ -31,6 +31,8 @@ export const CONFIG = {
   MANA_PER_GEM: 2,
   MANA_MAX: 100,
   STARTING_MANA: 30, // mana đầu trận cho mỗi bên
+  // Bù cho bên đi sau: first-turn advantage đo được 58.8% → 51.7% với +20 mana.
+  SECOND_TURN_MANA_BONUS: 20,
   HEAL_PCT_PER_GEM: 0.006, // +0.6% maxHP/tướng mỗi gem 🩸
   SHIELD_PCT_PER_GEM: 0.006, // +0.6% maxHP/tướng mỗi gem 🛡️
   SHIELD_CAP_PCT: 0.6, // 60% maxHP/tướng

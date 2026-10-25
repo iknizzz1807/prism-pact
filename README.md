@@ -471,6 +471,7 @@ export const CONFIG = {
   MANA_PER_GEM: 2,
   MANA_MAX: 100,
   STARTING_MANA: 30,           // mana đầu trận mỗi bên
+  SECOND_TURN_MANA_BONUS: 20,  // bù tempo cho bên đi sau
   HEAL_PCT_PER_GEM: 0.006,     // 0.6% maxHP
   SHIELD_PCT_PER_GEM: 0.006,   // 0.6% maxHP
   SHIELD_CAP_PCT: 0.60,        // 60% maxHP/tướng
@@ -1309,7 +1310,7 @@ Các quyết định **đã chốt**, dùng để chặn tranh luận lại gi�
 | **D-24** | **Draft snake-8** (P1→P2→P2→P1→P1→P2→P2→P1), pool 16 P2, kết thúc pick theo `PICKS_PER_SIDE × 2` thay vì `ROSTER_SIZE` | Loại bỏ lợi thế last-pick của P2; pool 16 đủ cho 4 pick/bên + 1 ban/bên; mở đường lên 20 mà không sửa logic draft | 25/10 |
 | **D-25** | **P2 roster**: Cleaver, Pyromancer, Venomancer, Oracle; thêm Burn/Poison/DOT_DOWN/Cleanse, Healer overheal → shield | Meta AoE/DoT; Oracle là cleanse chống DoT; Controller giảm 25% DoT | 25/10 |
 | **D-26** | **P3 roster**: Necromancer, Chronarch, Spellbreaker, Berserker; thêm Thrall, CD manipulation, mana drain, skill tax, missing-HP scaling; pool đủ 20 | Hoàn tất roster 20; Thrall tạo áp lực target thứ hai; Chronarch/Spellbreaker tạo meta tempo/mana; Berserker là bruiser risk-reward | 25/10 |
-| **D-27** | **Balance patch 2 (25/10)**: chỉ đổi HP/ATK/DEF (không đổi cost/CD), start mana 25→30, timer 20→15s, pick 30→20s, ban 20→15s, **random first turn** (`BATTLE_FIRST=random`) | 5.000 trận: P1/P2 **49,8/50,2%**, hero **46,7–53,8%** (trước: 31,5–72,6%). 1.000 trận @15s: **9m43s/trận** (median 9m15s), SD 3,3%, **6,0 skill/trận**, 21,9% lượt có skill. Draft first-pick không còn lợi thế rõ; battle-first được random hoá thay vì buff P2 | 25/10 |
+| **D-27** | **Balance patch 2 (25/10)**: chỉ đổi HP/ATK/DEF (không đổi cost/CD), start mana 25→30, timer 20→15s, pick 30→20s, ban 20→15s, **random first turn** (`BATTLE_FIRST=random`) + **bên đi sau +20 mana** | 5.000 trận: P1/P2 **50,0/50,0%**, first-turn **51,7%** / second-turn **48,3%**, hero **46,5–53,9%** (trước: 31,5–72,6%). 1.000 trận @15s: **9m43s/trận** (median 9m14s), SD 3,0%, **6,5 skill/trận**, 23,7% lượt có skill, skill đầu lượt 2,6. Draft first-pick không còn lợi thế rõ | 25/10 |
 
 ### Những gì đã cắt khỏi bản v1 (và lý do)
 

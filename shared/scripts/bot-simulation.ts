@@ -153,6 +153,11 @@ function runMatch(seed: number): MatchResult | null {
   state.sides.P2.mana = CONFIG.STARTING_MANA;
   // Công bằng side: mỗi bên 50% đi trước, thay vì luôn P1.
   state.active = rng() < 0.5 ? 'P1' : 'P2';
+  const secondSide = state.active === 'P1' ? 'P2' : 'P1';
+  state.sides[secondSide].mana = Math.min(
+    CONFIG.MANA_MAX,
+    state.sides[secondSide].mana + CONFIG.SECOND_TURN_MANA_BONUS,
+  );
 
   const battleFirst = state.active;
   let battleThinkingMs = 0;
@@ -312,8 +317,6 @@ for (let i = 0; i < matchCount; i++) {
 const simMs = performance.now() - simStart;
 const matches = results.length;
 
-const battleFirst = results[0]?.battleFirst ?? 'P1';
-const battleSecond = battleFirst === 'P1' ? 'P2' : 'P1';
 const p1Wins = results.filter((r) => r.winner === 'P1').length;
 const p2Wins = results.filter((r) => r.winner === 'P2').length;
 const draws = results.filter((r) => r.winner === 'draw').length;
@@ -329,6 +332,13 @@ const secondPickWins = results.filter(
 ).length;
 const firstPickP1 = results.filter((r) => r.firstPick === 'P1');
 const firstPickP2 = results.filter((r) => r.firstPick === 'P2');
+const firstTurnWins = results.filter((r) => r.winner === r.battleFirst).length;
+const secondTurnWins = results.filter(
+  (r) =>
+    (r.winner === 'P1' || r.winner === 'P2') && r.winner !== r.battleFirst,
+).length;
+const firstTurnP1 = results.filter((r) => r.battleFirst === 'P1').length;
+const firstTurnP2 = results.filter((r) => r.battleFirst === 'P2').length;
 const p1WinsWhenFirstPick = firstPickP1.filter((r) => r.winner === 'P1').length;
 const p1WinsWhenSecondPick = firstPickP2.filter((r) => r.winner === 'P1').length;
 const p2WinsWhenFirstPick = firstPickP2.filter((r) => r.winner === 'P2').length;
@@ -428,7 +438,9 @@ console.log(
     2,
   )} · turnUse=${(minUse * 100).toFixed(0)}–${(maxUse * 100).toFixed(0)}% · TURN_MS=${
     CONFIG.TURN_TIME_MS
-  } · startMana=${startMana} · mana/gem=${manaPerGem}`,
+  } · startMana=${startMana} · mana/gem=${manaPerGem} · second-turn +${
+    CONFIG.SECOND_TURN_MANA_BONUS
+  } mana`,
 );
 console.log(
   `Draft: pick ${(CONFIG.DRAFT_PICK_TIME_MS / 1000).toFixed(0)}s tuần tự, ban ${
@@ -448,10 +460,13 @@ console.log(
   )} · unfinished ${unfinished}`,
 );
 console.log(
-  `  Battle first (${battleFirst}) ${pct(p1Wins, matches)} · second (${battleSecond}) ${pct(
-    p2Wins,
+  `  First-turn side thắng ${pct(firstTurnWins, matches)} · second-turn side thắng ${pct(
+    secondTurnWins,
     matches,
-  )}` + '  (createBattle luôn cho P1 đi trước)',
+  )}`,
+);
+console.log(
+  `  First-turn side: P1 ${firstTurnP1} trận · P2 ${firstTurnP2} trận (random 50/50)`,
 );
 console.log(
   `  Draft first-pick side thắng ${pct(firstPickWins, matches)} · second-pick side thắng ${pct(

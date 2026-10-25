@@ -335,6 +335,12 @@ export class MatchRoom {
       undefined,
       firstSide,
     );
+    // Bù tempo cho bên đi sau — first-turn advantage ~58.8% nếu không bù.
+    const secondSide = otherSide(firstSide);
+    this.battle.sides[secondSide].mana = Math.min(
+      CONFIG.MANA_MAX,
+      this.battle.sides[secondSide].mana + CONFIG.SECOND_TURN_MANA_BONUS,
+    );
     this.phase = 'battle';
     this.deadline = this.now() + this.timings.turnMs;
     this.scheduleBot();
