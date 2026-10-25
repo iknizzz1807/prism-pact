@@ -300,3 +300,7 @@ client/src/
     - Fix runtime cũ: tween pick/ban dùng `this.scene` sau scene shutdown → capture scene + guard.
     - Test mới: skill animation metadata (enemy target / ally target / rejected skill). Tổng **109 shared + 19 contracts + 34 server = 162 pass**; typecheck + build sạch.
     - Đã chạy thử PvBot trong browser: vào Battle scene, bot cast Amputation (AoE) không có runtime error.
+26. **Ban Reveal emoji fallback (25/10)**:
+    - Ô vuông dấu hỏi trước Cleaver là **missing glyph** của emoji `🪚` (saw) — font Windows/Phaser không render.
+    - Đổi các emoji mới/không chắc hỗ trợ: `🪚→🔪` (Cleaver), `🪓→🥊` (Bruiser), `🪄→✨` (Spellbreaker), `🧪→⚗️` (Debuffer), cả trong `ARCHETYPE_EMOJI` và Lobby handbook.
+    - Ban Reveal giờ hiển thị icon ổn định trên Windows; không còn tofu/question-mark.

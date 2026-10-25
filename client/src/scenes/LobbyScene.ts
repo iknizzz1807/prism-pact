@@ -255,9 +255,9 @@ export class LobbyScene extends Phaser.Scene {
       { name: 'Healer', emoji: '✚', role: 'Mass Heal 40% cả đội, tự hồi 5%/lượt' },
       { name: 'Controller', emoji: '🌀', role: 'Weaken -50% ATK địch, hồi 10 mana' },
       { name: 'Buffer', emoji: '📣', role: 'Rally +30% ATK & giáp cho cả đội' },
-      { name: 'Debuffer', emoji: '🧪', role: 'Strip -50% DEF địch, tăng dame team' },
+      { name: 'Debuffer', emoji: '⚗️', role: 'Strip -50% DEF địch, tăng dame team' },
       { name: 'Assassin', emoji: '🗡️', role: 'Execute 2.5× ATK, bỏ qua 50% DEF' },
-      { name: 'Bruiser', emoji: '🪓', role: 'Lifesteal Strike 2× ATK, hồi máu' },
+      { name: 'Bruiser', emoji: '🥊', role: 'Lifesteal Strike 2× ATK, hồi máu' },
     ];
 
     roster.forEach((h, idx) => {
@@ -280,7 +280,7 @@ export class LobbyScene extends Phaser.Scene {
       this,
       898,
       406,
-      '+4 P2: 🪚 Cleaver · 🔥 Pyromancer · 🐍 Venomancer · 🔮 Oracle',
+      '+4 P2: 🔪 Cleaver · 🔥 Pyromancer · 🐍 Venomancer · 🔮 Oracle',
       9,
       COLORS.dim,
       'bold',
@@ -289,7 +289,7 @@ export class LobbyScene extends Phaser.Scene {
       this,
       898,
       422,
-      '+4 P3: 💀 Necromancer · ⏳ Chronarch · 🪄 Spellbreaker · 💢 Berserker',
+      '+4 P3: 💀 Necromancer · ⏳ Chronarch · ✨ Spellbreaker · 💢 Berserker',
       9,
       COLORS.dim,
       'bold',
