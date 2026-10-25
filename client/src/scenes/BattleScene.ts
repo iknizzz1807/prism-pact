@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CONFIG, otherSide } from '@prism-pact/shared';
+import { CONFIG, heroDef, otherSide } from '@prism-pact/shared';
 import type {
   BattleView,
   GemType,
@@ -76,6 +76,7 @@ export class BattleScene extends Phaser.Scene {
   private view: MatchView | null = null;
   private selectedCell: number | null = null;
   private linkGfx!: Phaser.GameObjects.Graphics;
+  private skillLinkGfx!: Phaser.GameObjects.Graphics;
   private turnFrame!: Phaser.GameObjects.Graphics;
   private turnPill!: Phaser.GameObjects.Graphics;
   private turnPillText!: Phaser.GameObjects.Text;
@@ -117,6 +118,7 @@ export class BattleScene extends Phaser.Scene {
     this.selectionGfx = this.add.graphics().setDepth(15);
     this.arrowGfx = this.add.graphics().setDepth(18);
     this.linkGfx = this.add.graphics().setDepth(24);
+    this.skillLinkGfx = this.add.graphics().setDepth(27);
 
     this.input.on('pointerup', this.onPointerUp, this);
 
@@ -377,7 +379,10 @@ export class BattleScene extends Phaser.Scene {
 
     const enemyActing = anim.side !== view.you;
     this.renderTurnPill(!enemyActing, false);
-    if (enemyActing) {
+    if (anim.skillCasterUid) {
+      await this.playSkillIntro(anim, enemyActing);
+      if (this.disposed) return;
+    } else if (enemyActing) {
       showTurnNotice(this, 360, 'ĐỐI THỦ ĐANG RA ĐÒN', COLORS.enemy);
       await this.delay(600);
       if (this.disposed) return;
@@ -392,6 +397,7 @@ export class BattleScene extends Phaser.Scene {
     } catch {
       // Bỏ qua lỗi animation, đồng bộ trạng thái cuối
     } finally {
+      if (!this.disposed) this.clearSkillFocus();
       this.animating = false;
       this.busy = false;
       if (this.disposed) return;
@@ -400,6 +406,141 @@ export class BattleScene extends Phaser.Scene {
       if (next) void this.playAnimation(next.animation, latest);
       else this.applyState(latest, true);
     }
+  }
+
+  private cardByUid(uid: string | null): BattleHeroCard | null {
+    if (!uid) return null;
+    return [...this.ownCards, ...this.enemyCards].find((card) => card.uid === uid) ?? null;
+  }
+
+  private clearSkillFocus(): void {
+    for (const card of [...this.ownCards, ...this.enemyCards]) {
+      card.setCasterGlow(false);
+      card.setAimed(false);
+    }
+    this.skillLinkGfx.clear();
+  }
+
+  private skillAffectedCards(
+    caster: BattleHeroCard,
+    target: BattleHeroCard | null,
+  ): BattleHeroCard[] {
+    if (target) return [target];
+    const targetType = heroDef(caster.archetype).skill.target ?? 'enemy';
+    if (targetType === 'self') return [caster];
+
+    const allies = caster.variant === 'ally' ? this.ownCards : this.enemyCards;
+    const enemies = caster.variant === 'ally' ? this.enemyCards : this.ownCards;
+    if (caster.archetype === 'Healer' || caster.archetype === 'Buffer') return allies;
+    if (
+      caster.archetype === 'Cleaver' ||
+      caster.archetype === 'Venomancer' ||
+      caster.archetype === 'Chronarch'
+    ) {
+      return enemies;
+    }
+    return [caster];
+  }
+
+  private skillTargetLabel(
+    caster: BattleHeroCard,
+    target: BattleHeroCard | null,
+    affected: BattleHeroCard[],
+  ): string {
+    if (target) {
+      return target.uid === caster.uid ? '→ bản thân' : `→ ${target.archetype}`;
+    }
+    const targetType = heroDef(caster.archetype).skill.target ?? 'enemy';
+    if (targetType === 'self') return '→ bản thân';
+    if (caster.archetype === 'Tank') return '→ bản thân';
+    if (caster.archetype === 'Necromancer') return '→ triệu hồi Thrall';
+    if (caster.archetype === 'Healer' || caster.archetype === 'Buffer') return '→ toàn đội';
+    if (
+      caster.archetype === 'Cleaver' ||
+      caster.archetype === 'Venomancer' ||
+      caster.archetype === 'Chronarch'
+    ) {
+      return '→ toàn bộ địch';
+    }
+    return affected.length > 1 ? '→ nhiều mục tiêu' : '';
+  }
+
+  /** Banner + beam + ring để người chơi thấy rõ ai dùng chiêu và đang nhắm ai. */
+  private async playSkillIntro(anim: TurnAnimation, enemyActing: boolean): Promise<void> {
+    const caster = this.cardByUid(anim.skillCasterUid ?? null);
+    if (!caster) return;
+
+    const target = this.cardByUid(anim.skillTargetUid ?? null);
+    const affected = this.skillAffectedCards(caster, target);
+    const targetText = this.skillTargetLabel(caster, target, affected);
+    const allyTarget = target !== null && target.variant === caster.variant;
+    const color = target
+      ? allyTarget
+        ? COLORS.hp
+        : COLORS.enemy
+      : caster.variant === 'enemy'
+        ? COLORS.enemy
+        : COLORS.accent;
+
+    this.clearSkillFocus();
+    caster.setCasterGlow(true);
+    for (const card of affected) {
+      card.setAimed(true, card.variant === caster.variant ? COLORS.hp : COLORS.enemy);
+    }
+
+    const prefix = enemyActing ? 'ĐỊCH' : 'BẠN';
+    const skillName = heroDef(caster.archetype).skill.name;
+    showTurnNotice(
+      this,
+      360,
+      `⚡ ${prefix} · ${ARCHETYPE_EMOJI[caster.archetype]} ${caster.archetype}: ${skillName} ${targetText}`.trim(),
+      enemyActing ? COLORS.enemy : COLORS.accent,
+    );
+
+    if (target && target !== caster) {
+      const g = this.skillLinkGfx;
+      g.clear();
+      g.lineStyle(12, color, 0.14);
+      g.lineBetween(caster.x, caster.y, target.x, target.y);
+      g.lineStyle(3, color, 0.95);
+      g.lineBetween(caster.x, caster.y, target.x, target.y);
+
+      const orb = this.add.circle(caster.x, caster.y, 7, color, 1).setDepth(28);
+      const halo = this.add.circle(caster.x, caster.y, 12, color, 0.35).setDepth(28);
+      await this.tweenAsync({
+        targets: orb,
+        x: target.x,
+        y: target.y,
+        duration: 360,
+        ease: 'Cubic.easeIn',
+      });
+      halo.setPosition(target.x, target.y);
+      this.tweens.add({
+        targets: halo,
+        scale: 2.4,
+        alpha: 0,
+        duration: 260,
+        onComplete: () => halo.destroy(),
+      });
+      orb.destroy();
+      g.clear();
+    } else {
+      const ring = this.add
+        .circle(caster.x, caster.y, 28, color, 0)
+        .setStrokeStyle(3, color, 0.9)
+        .setDepth(28);
+      this.tweens.add({
+        targets: ring,
+        scale: 2.3,
+        alpha: 0,
+        duration: 420,
+        onComplete: () => ring.destroy(),
+      });
+      await this.delay(260);
+    }
+
+    // Giữ banner/ring thêm một nhịp để mắt kịp bắt trước khi board nổ.
+    await this.delay(160);
   }
 
   private async animateSwapPair(

@@ -86,7 +86,9 @@ export interface TurnAnimation {
   swapBoard: (GemView | null)[];
   waves: WaveView[];
   skillCasterUid?: string;
-  /** Tướng bị đánh trong lượt (để hiệu ứng ngọc bay tới đúng người). */
+  /** Target thực tế của skill (enemy/ally/self); null nếu AoE hoặc không target. */
+  skillTargetUid?: string | null;
+  /** Tướng bị đánh bởi basic attack trong lượt (để hiệu ứng ngọc bay tới đúng người). */
   targetUid: string | null;
 }
 

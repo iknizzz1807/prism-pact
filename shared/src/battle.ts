@@ -155,6 +155,8 @@ export function playTurn(state: BattleState, action: TurnAction, rng: Rng): Turn
 
   // ── 1. Skill (tối đa 1/lượt) ────────────────────────────────────────
   let skillDamage = 0;
+  let skillUsed = false;
+  let skillTargetUid: string | null = null;
   if (action.skill) {
     const caster = active.heroes.find((h) => h.uid === action.skill!.casterUid);
     if (caster) {
@@ -173,7 +175,9 @@ export function playTurn(state: BattleState, action: TurnAction, rng: Rng): Turn
       if (outcome.summon !== undefined) active.thrall = outcome.summon;
       if (outcome.ok) {
         active.skillUsedThisTurn = true;
+        skillUsed = true;
         skillDamage = outcome.damage;
+        skillTargetUid = outcome.targetUid;
         logs.push(...outcome.logs);
       } else {
         logs.push(`Skill bị từ chối: ${outcome.reason}`);
@@ -269,7 +273,9 @@ export function playTurn(state: BattleState, action: TurnAction, rng: Rng): Turn
     side,
     from: action.swap[0],
     to: action.swap[1],
-    ...(action.skill ? { skillCasterUid: action.skill.casterUid } : {}),
+    ...(skillUsed && action.skill
+      ? { skillCasterUid: action.skill.casterUid, skillTargetUid }
+      : {}),
     targetUid: target?.uid ?? null,
     swapBoard: resolved.swapBoard.map((cell) => (cell ? { type: cell.type, special: cell.special } : null)),
     waves: resolved.waves.map(

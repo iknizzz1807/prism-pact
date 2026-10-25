@@ -265,10 +265,12 @@ export class DraftHeroCard extends Phaser.GameObjects.Container {
 
   /** Hiệu ứng recoil bật nảy ease-in ease-out cực mạnh khi tướng được pick. */
   playPickRecoil(isEnemy = false): void {
+    const scene = this.scene;
+    if (!scene) return;
     const color = isEnemy ? COLORS.enemy : COLORS.accent;
 
     // Giật nảy scale mạnh với Back.easeOut (punch & recoil)
-    this.scene.tweens.add({
+    scene.tweens.add({
       targets: this,
       scaleX: 1.12,
       scaleY: 1.12,
@@ -279,7 +281,7 @@ export class DraftHeroCard extends Phaser.GameObjects.Container {
 
     // Tag text nổi lên báo hiệu lượt chọn
     const banner = label(
-      this.scene,
+      scene,
       this.x,
       this.y - 12,
       isEnemy ? '⚔️ ĐỐI THỦ CHỌN' : '✓ BẠN ĐÃ CHỌN',
@@ -293,7 +295,7 @@ export class DraftHeroCard extends Phaser.GameObjects.Container {
       .setScale(0.65)
       .setAlpha(0);
 
-    this.scene.tweens.add({
+    scene.tweens.add({
       targets: banner,
       y: this.y - 58,
       scale: 1.1,
@@ -301,7 +303,8 @@ export class DraftHeroCard extends Phaser.GameObjects.Container {
       duration: 180,
       ease: 'Back.easeOut',
       onComplete: () => {
-        this.scene.tweens.add({
+        if (!scene.sys.isActive() || !banner.active) return;
+        scene.tweens.add({
           targets: banner,
           alpha: 0,
           y: this.y - 78,
@@ -313,11 +316,11 @@ export class DraftHeroCard extends Phaser.GameObjects.Container {
     });
 
     // Vành hào quang bung rộng tỏa ra từ thẻ
-    const wave = this.scene.add.graphics().setDepth(55);
+    const wave = scene.add.graphics().setDepth(55);
     wave.setPosition(this.x, this.y);
     wave.lineStyle(3, color, 0.95);
     wave.strokeRoundedRect(-this.boxW / 2 - 2, -this.boxH / 2 - 2, this.boxW + 4, this.boxH + 4, 14);
-    this.scene.tweens.add({
+    scene.tweens.add({
       targets: wave,
       scaleX: 1.18,
       scaleY: 1.25,
@@ -331,10 +334,10 @@ export class DraftHeroCard extends Phaser.GameObjects.Container {
     for (let s = 0; s < 8; s += 1) {
       const angle = (s / 8) * Math.PI * 2;
       const dist = Phaser.Math.Between(26, 52);
-      const spark = this.scene.add
+      const spark = scene.add
         .circle(this.x, this.y, Phaser.Math.FloatBetween(2, 3.8), color, 1)
         .setDepth(56);
-      this.scene.tweens.add({
+      scene.tweens.add({
         targets: spark,
         x: this.x + Math.cos(angle) * dist,
         y: this.y + Math.sin(angle) * dist,
@@ -428,9 +431,11 @@ export class MiniHeroSlot extends Phaser.GameObjects.Container {
 
   /** Hiệu ứng pop-in ease-in ease-out cực mạnh khi có tướng mới được chọn vào slot. */
   playPickPop(accentColor: number = COLORS.accent): void {
+    const scene = this.scene;
+    if (!scene) return;
     this.setScale(0.62);
     this.setAlpha(0.5);
-    this.scene.tweens.add({
+    scene.tweens.add({
       targets: this,
       scaleX: 1,
       scaleY: 1,
@@ -440,11 +445,11 @@ export class MiniHeroSlot extends Phaser.GameObjects.Container {
     });
 
     // Vành hào quang phóng to quanh ô slot
-    const ring = this.scene.add.graphics().setDepth(20);
+    const ring = scene.add.graphics().setDepth(20);
     ring.setPosition(this.x, this.y);
     ring.lineStyle(3, accentColor, 0.95);
     ring.strokeRoundedRect(-this.slotWidth / 2, -this.slotHeight / 2, this.slotWidth, this.slotHeight, 10);
-    this.scene.tweens.add({
+    scene.tweens.add({
       targets: ring,
       scaleX: 1.15,
       scaleY: 1.25,
@@ -458,10 +463,10 @@ export class MiniHeroSlot extends Phaser.GameObjects.Container {
     for (let i = 0; i < 8; i += 1) {
       const angle = (i / 8) * Math.PI * 2;
       const dist = Phaser.Math.Between(22, 44);
-      const spark = this.scene.add
+      const spark = scene.add
         .circle(this.x, this.y, Phaser.Math.FloatBetween(2, 3.5), accentColor, 1)
         .setDepth(21);
-      this.scene.tweens.add({
+      scene.tweens.add({
         targets: spark,
         x: this.x + Math.cos(angle) * dist,
         y: this.y + Math.sin(angle) * dist,
@@ -512,6 +517,7 @@ export class BattleHeroCard extends Phaser.GameObjects.Container {
   private readonly buffText: Phaser.GameObjects.Text;
   private readonly deadText: Phaser.GameObjects.Text;
   private readonly targetRing: Phaser.GameObjects.Graphics;
+  private readonly aimRing: Phaser.GameObjects.Graphics;
   private readonly casterGlow: Phaser.GameObjects.Graphics;
   private readonly nameText: Phaser.GameObjects.Text;
 
@@ -519,6 +525,7 @@ export class BattleHeroCard extends Phaser.GameObjects.Container {
     const bg = scene.add.graphics();
     const casterGlow = scene.add.graphics();
     const targetRing = scene.add.graphics();
+    const aimRing = scene.add.graphics();
     const left = -options.width / 2;
     const top = -options.height / 2;
     const sideColor = options.variant === 'enemy' ? COLORS.enemy : COLORS.accent;
@@ -559,6 +566,7 @@ export class BattleHeroCard extends Phaser.GameObjects.Container {
       bg,
       casterGlow,
       targetRing,
+      aimRing,
       nameText,
       statText,
       hpBar,
@@ -583,6 +591,7 @@ export class BattleHeroCard extends Phaser.GameObjects.Container {
     this.buffText = buffText;
     this.deadText = deadText;
     this.targetRing = targetRing;
+    this.aimRing = aimRing;
     this.casterGlow = casterGlow;
     this.nameText = nameText;
 
@@ -651,6 +660,41 @@ export class BattleHeroCard extends Phaser.GameObjects.Container {
       g.lineBetween(cx, cy, cx + len * dx, cy);
       g.lineBetween(cx, cy, cx, cy + len * dy);
     }
+  }
+
+  /** Highlight mục tiêu của skill (khác với target basic attack màu vàng). */
+  setAimed(on: boolean, color: number = COLORS.gold): void {
+    const g = this.aimRing;
+    g.clear();
+    if (!on) return;
+    const left = -this.boxW / 2;
+    const top = -this.boxH / 2;
+
+    g.lineStyle(12, color, 0.18);
+    g.strokeRoundedRect(left - 4, top - 4, this.boxW + 8, this.boxH + 8, 16);
+    g.lineStyle(3, color, 1);
+    g.strokeRoundedRect(left - 4, top - 4, this.boxW + 8, this.boxH + 8, 16);
+
+    // Corner brackets hướng vào tâm
+    const len = 18;
+    const corners: Array<[number, number, number, number]> = [
+      [left - 4, top - 4, 1, 1],
+      [this.boxW / 2 + 4, top - 4, -1, 1],
+      [left - 4, this.boxH / 2 + 4, 1, -1],
+      [this.boxW / 2 + 4, this.boxH / 2 + 4, -1, -1],
+    ];
+    g.lineStyle(4, COLORS.white, 0.95);
+    for (const [cx, cy, dx, dy] of corners) {
+      g.lineBetween(cx, cy, cx + len * dx, cy);
+      g.lineBetween(cx, cy, cx, cy + len * dy);
+    }
+
+    // Diamond marker trên đỉnh card
+    const mx = 0;
+    const my = top - 13;
+    g.fillStyle(color, 1);
+    g.fillTriangle(mx, my - 7, mx - 7, my, mx + 7, my);
+    g.fillTriangle(mx, my + 7, mx - 7, my, mx + 7, my);
   }
 
   setCasterGlow(on: boolean): void {

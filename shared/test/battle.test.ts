@@ -139,6 +139,75 @@ describe('sudden death', () => {
   });
 });
 
+describe('skill animation metadata', () => {
+  it('enemy-target skill gửi đúng caster + skill target', () => {
+    const state = newBattle(2026);
+    state.sides.P1.mana = 100;
+    const rng = mulberry32(11);
+    const swap = chooseAction(state, rng)!.swap;
+
+    const report = playTurn(
+      state,
+      {
+        swap,
+        targetUid: 'P2:0',
+        skill: { casterUid: 'P1:1', targetUid: 'P2:0' },
+      },
+      rng,
+    );
+
+    assert.equal(report.accepted, true);
+    assert.equal(report.animation?.skillCasterUid, 'P1:1');
+    assert.equal(report.animation?.skillTargetUid, 'P2:0');
+  });
+
+  it('ally-target skill khác target basic attack', () => {
+    const state = createBattle(
+      ['Tank', 'Burst', 'Oracle'],
+      ['Bruiser', 'Assassin', 'Controller'],
+      mulberry32(2026),
+    );
+    state.sides.P1.mana = 100;
+    const rng = mulberry32(12);
+    const swap = chooseAction(state, rng)!.swap;
+
+    const report = playTurn(
+      state,
+      {
+        swap,
+        targetUid: 'P2:0',
+        skill: { casterUid: 'P1:2', targetUid: 'P1:0' },
+      },
+      rng,
+    );
+
+    assert.equal(report.animation?.skillCasterUid, 'P1:2');
+    assert.equal(report.animation?.skillTargetUid, 'P1:0');
+    assert.equal(report.animation?.targetUid, 'P2:0');
+  });
+
+  it('skill bị từ chối không gửi metadata cast', () => {
+    const state = newBattle(2026);
+    state.sides.P1.mana = 0;
+    const rng = mulberry32(13);
+    const swap = chooseAction(state, rng)!.swap;
+
+    const report = playTurn(
+      state,
+      {
+        swap,
+        targetUid: 'P2:0',
+        skill: { casterUid: 'P1:1', targetUid: 'P2:0' },
+      },
+      rng,
+    );
+
+    assert.equal(report.accepted, true);
+    assert.equal(report.animation?.skillCasterUid, undefined);
+    assert.equal(report.animation?.skillTargetUid, undefined);
+  });
+});
+
 describe('summon', () => {
   it('Thrall đánh target đã commit sau lượt', () => {
     const state = newBattle(7);

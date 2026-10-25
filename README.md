@@ -23,7 +23,7 @@
 
 | Layer | Trạng thái |
 |---|---|
-| `shared/` — board, match-3, combat, 20 hero P3, battle loop, draft snake-8, bot, protocol | ✅ **xong** · 106 test |
+| `shared/` — board, match-3, combat, 20 hero P3, battle loop, draft snake-8, bot, protocol | ✅ **xong** · 109 test |
 | `contracts/` — MockUSDC, MockBenqi, SeasonVault | ✅ **xong** · 19 test · deploy local OK · có `demo:season` |
 | `server/` — WS + matchmaking + MatchRoom + bot/Jev/Von policy + rank + chain operator | ✅ **xong** · 34 test |
 | `client/` — Phaser 3 (Lobby, Draft, Battle, Season, wallet) | ✅ **xong** · build OK · E2E bot match đã kiểm chứng |
@@ -31,7 +31,7 @@
 ```bash
 npm install
 npm run setup:client                        # cài dependency cho client (standalone)
-npm test        # 106 test shared + 19 test contract + 34 test server = 159
+npm test        # 109 test shared + 19 test contract + 34 test server = 162
 npm run typecheck
 npm run build   # shared + contracts + client
 npm run demo    # 2 bot đánh nhau 1 trận hoàn chỉnh, in log từng lượt
@@ -924,6 +924,11 @@ MatchRoom (1 trận)
 **Timeout tự động** (chống AFK): hết giờ pick/ban → random hợp lệ; hết giờ lượt → bot chọn nước đi tốt nhất. **Disconnect**: giữ 20s, quá hạn xử thua.
 
 **Đồng bộ timer với animation:** server cộng bù `min(9s, 0.9s + 0.85s × số wave)` vào deadline của lượt kế và lùi thời điểm bot ra quyết định. Nhờ vậy client phát animation xong mới bắt đầu đếm giờ, và **có khoảng nghỉ thấy rõ giữa lượt bạn và lượt địch** (pill đổi màu + splash "ĐỐI THỦ ĐANG ĐÁNH"). Client cũng **đóng băng đồng hồ** trong lúc animation chạy.
+
+**Skill cast clarity:** `TurnAnimation` gửi thêm `skillCasterUid` + `skillTargetUid`. Khi có chiêu, client hiện banner
+`⚡ ĐỊCH/BẠN · <Caster>: <Skill> → <Target>`, vẽ beam từ caster tới target, pulse caster và ring target.
+Skill AoE (`Cleaver`, `Venomancer`, `Healer`, `Buffer`...) highlight toàn bộ đội liên quan; skill self/summon
+highlight caster. Metadata chỉ gửi khi skill **thực sự dùng được** — skill bị từ chối không phát animation giả.
 
 **HTTP API** (CORS mở — SeasonScene và tooling dùng):
 

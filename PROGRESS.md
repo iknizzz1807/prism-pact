@@ -11,13 +11,13 @@
 Game **chơi được end-to-end** ở local (draft live → battle → kết quả), có animation cascade. **Chưa deploy Fuji**, nên phần Web3 đang tắt. Thiếu slide/video.
 
 ```
-shared/     106 test  ✅ xong (luật game + 20 hero P3 + weighted swap)
+shared/     109 test  ✅ xong (luật game + 20 hero P3 + weighted swap)
 contracts/  19 test   ✅ xong (đã deploy hardhat local, chưa lên Fuji)
 server/     34 test   ✅ xong (WS + HTTP + Jev/Von policy + fallback)
 client/      build OK  ✅ xong phần chơi; còn polish + Web3 UI
 ```
 
-Chạy `npm test` → 159 test. `npm run typecheck` + `npm run build` → sạch.
+Chạy `npm test` → 162 test. `npm run typecheck` + `npm run build` → sạch.
 
 ---
 
@@ -293,3 +293,10 @@ client/src/
     - Pair synergy: Juggernaut+Sniper +17,4pp; Tank+Burst +13,9; Juggernaut+Executioner +13,4; Paladin+Sniper +13,0; Juggernaut+Cleaver +12,9. Anti: Tank+Healer −16,3; Paladin+Juggernaut −11,4.
     - Counter: Juggernaut > Assassin 76,5%; Healer > Assassin 74,5%; Juggernaut > Debuffer/Sniper 71,9%; Assassin worst vs Tank 20,3%.
     - Output `shared/combo-analysis.json` (ignored). Test vẫn **159 pass**; typecheck sạch.
+25. **UI/UX skill cast clarity (25/10)**:
+    - `TurnAnimation` thêm `skillTargetUid`; `battle.ts` chỉ gửi `skillCasterUid/skillTargetUid` khi skill thực sự dùng được (skill bị từ chối không phát animation giả).
+    - Client: banner `⚡ ĐỊCH/BẠN · <Caster>: <Skill> → <Target>`, beam từ caster tới target, pulse caster, ring target; AoE highlight toàn bộ đội liên quan; self/summon highlight caster.
+    - `BattleHeroCard.setAimed()` thêm ring màu riêng cho skill target (khác ring vàng basic attack).
+    - Fix runtime cũ: tween pick/ban dùng `this.scene` sau scene shutdown → capture scene + guard.
+    - Test mới: skill animation metadata (enemy target / ally target / rejected skill). Tổng **109 shared + 19 contracts + 34 server = 162 pass**; typecheck + build sạch.
+    - Đã chạy thử PvBot trong browser: vào Battle scene, bot cast Amputation (AoE) không có runtime error.
