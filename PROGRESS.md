@@ -1,6 +1,6 @@
 # PROGRESS — Prism Pact
 
-> File bàn giao cho agent/người tiếp quản. Cập nhật lần cuối: **2026-10-23**.
+> File bàn giao cho agent/người tiếp quản. Cập nhật lần cuối: **2026-10-25**.
 > Spec là `README.md` — file này chỉ nói **đang ở đâu, còn gì, cạm bẫy gì**.
 > Quyết định thiết kế nằm ở `README.md` mục 14 (D-01 → D-22), không lặp lại ở đây.
 
@@ -11,13 +11,13 @@
 Game **chơi được end-to-end** ở local (draft live → battle → kết quả), có animation cascade. **Chưa deploy Fuji**, nên phần Web3 đang tắt. Thiếu slide/video.
 
 ```
-shared/     78 test   ✅ xong (luật game)
+shared/     106 test  ✅ xong (luật game + 20 hero P3 + weighted swap)
 contracts/  19 test   ✅ xong (đã deploy hardhat local, chưa lên Fuji)
-server/     20 test   ✅ xong (WS + HTTP)
+server/     34 test   ✅ xong (WS + HTTP + Jev/Von policy + fallback)
 client/      build OK  ✅ xong phần chơi; còn polish + Web3 UI
 ```
 
-Chạy `npm test` → 117 test. `npm run typecheck` + `npm run build` → sạch.
+Chạy `npm test` → 159 test. `npm run typecheck` + `npm run build` → sạch.
 
 ---
 
@@ -55,15 +55,20 @@ shared/src/
   types.ts       Board/Cell/Wave/HeroState/SideState
   match3.ts      swap, findRuns, cascade, bomb, gravity (trả moves/spawned/board), shuffle
   combat.ts      damage, heal, shield, mana, cap, taunt, sudden death
-  heroes.ts      8 archetype (HP/ATK/DEF/skill/passive)
+  heroes.ts      20 hero P3 (HP/ATK/DEF/skill/passive)
   skills.ts      8 skill + validate mana/CD
   battle.ts      1 lượt hoàn chỉnh + TurnAnimation
-  draft.ts       state machine pick 2-2 + ban ẩn
+  draft.ts       state machine pick snake-8 + ban ẩn
   bot.ts         chọn swap/skill cho bot
   protocol.ts    ClientMessage/ServerMessage/MatchView/TurnAnimation
 server/src/
-  server.ts      HTTP (/health,/config,/season) + WS + matchmaking
-  rooms/MatchRoom.ts  draft → ban → battle → result, timer, bot, forfeit, commitDraft
+  server.ts      HTTP (/health,/config,/season) + WS + matchmaking + policy factory
+  rooms/MatchRoom.ts  draft → ban → battle → result, timer, bot sync/async, forfeit, commitDraft
+  bots/types.ts         TurnPlan / BotPolicy / intent → GemWeights
+  bots/heuristicPolicy.ts  wrap hành vi bot cũ (fallback)
+  bots/jevPolicy.ts     SystemOnePolicy + JevPolicy (OpenRouter) + VonPolicy (local)
+  bots/policyRunner.ts  timeout + confidence + fallback
+  bots/config.ts       đọc BOT_POLICY / JEV_* / VON_* env
   season.ts      đọc SeasonVault read-only (cache 5s)
   ranking.ts     JSON +25/−15
   chain.ts       operator ký commitDraft (env-gated)
@@ -89,12 +94,14 @@ client/src/
 |---|---|
 | Trận PvBot trọn vẹn 56 lượt, Sudden Death, ra kết quả + rank | chạy qua browser thật, đọc `matchStore` |
 | 2 client WS queue → cùng 1 trận, side đối nhau | `server/test/ws.test.ts` |
-| Draft 2-2, ban ẩn tới khi cả 2 xong | `room.test.ts` + chạy tay |
+| Draft snake-8, ban ẩn tới khi cả 2 xong | `room.test.ts` + chạy tay |
 | Animation cascade | 6/8 lượt có ≥2 wave, max 7 wave, 36 viên rơi |
 | Link đúng quân | hook `drawLinks`: **0 ô sai / 13 wave** (trước khi sửa: 4/18) |
 | Bàn sau animation khớp server | 64/64 ô đúng ở 4 lượt liên tiếp |
 | Không lỗi console | 0 error trong các phiên E2E |
 | No-loss | `npm run demo:season` → bob/carol về đúng 1000, alice +prize |
+| JevPolicy chain thật | gọi OpenRouter `typesafe/jev-1.14` từ code TypeScript → plan `Nuke / P2:1 / BALANCED`, confidence 0.37 |
+| Fallback Jev | `server/test/policy.test.ts`: network error, timeout 20ms, confidence 0.15, option lạ → heuristic |
 
 ---
 
@@ -169,6 +176,7 @@ client/src/
 9. **Không có `git` và `node` toàn cục.** Node portable ở đường dẫn §2 (có thể mất sau khi reset máy → cài lại).
 
 10. **`npm run build` ở root build cả client** → cần `setup:client` trước.
+11. **Draft kết thúc theo `PICKS_PER_SIDE × 2`**, không theo `ROSTER_SIZE`. Pool 12 P1 → 8 pick + 2 ban; nếu dùng `ROSTER_SIZE` làm điều kiện kết thúc, draft sẽ treo khi roster thay đổi.
 
 ---
 
@@ -222,3 +230,47 @@ client/src/
     - **Sửa thứ tự hiển thị z-order**: Đưa `bg` vào `modal` đầu tiên thay vì cuối cùng, giúp toàn bộ nội dung chữ (Tên tướng cấm, Đội hình 3 tướng ra trận, tiêu đề) hiển thị rõ ràng trên nền panel mà không bị hình chữ nhật nền che lấp.
     - **Khử lỗi kẹt chuyển cảnh (Scene Transition Hang)**: Thay thế việc chờ event camera `FADE_OUT_COMPLETE` (vốn bị nuốt hoặc đơ khi fade effect đang chạy) bằng tween alpha scrim/modal trực tiếp kết hợp timeout bảo hiểm tự động trong `DraftScene` và safety timer 3.5s trong `main.ts`.
     - **Hỗ trợ click để vào ngay**: Cho phép người chơi nhấp chuột bất kỳ đâu trên màn hình để bỏ qua thời gian chờ 2.2s và vào thẳng trận đấu ngay lập tức.
+17. **Balance patch 25/10 — rút ngắn trận, tăng mật độ skill (D-23)**:
+    - HP toàn bộ hero ×0,8; ATK ×1,2; heal/shield mỗi gem 1% → 0,6%; damage cap 5 → 6; ATK gem weight 25% → 30%.
+    - Mana đầu trận 25; mana/gem 1 → 2; skill cost −20% (giữ nguyên cooldown).
+    - **Giữ turn timer 20s** — không đánh đổi thời gian suy nghĩ.
+    - Đo 1.000 trận bot (seed 20261025): 62,3 → **24,8 lượt/trận** (~12,4 lượt/người); Sudden Death 84,1% → **0,2%**; skill/trận 6,5 → 5,4 nhưng **mật độ 10,4% → 21,9% số lượt**; skill đầu tiên lượt 17 → **lượt 5,5**.
+    - Thời gian battle (90% timer + animation ~3,2s/lượt): 22m03s → **8m45s**; full match + draft: 24m09s → **10m51s**.
+    - Script đo: `node --import tsx shared/scripts/turn-stats.ts 1000 draft`.
+18. **P0 + P1 roster 12 hero (25/10)**:
+    - Thêm 4 hero: **Paladin** (Invincible 1 lần/trận), **Juggernaut** (Thorns + DEF), **Executioner** (true damage), **Sniper** (xuyên shield).
+    - `Archetype` mở lên 20 id; `ROSTER` hiện có 12 (8 core + 4 P1); 8 hero P2/P3 để reserve.
+    - Draft đổi sang **snake-8**: P1→P2→P2→P1→P1→P2→P2→P1; kết thúc pick theo `PICKS_PER_SIDE × 2`, không dùng `ROSTER_SIZE`.
+    - Taunt giờ redirect **single-target skill** (trừ Assassin auto-lowest-HP); thêm `INVINCIBLE`, `THORNS`, `DEF_UP`, true damage, shield-bypass.
+    - UI Draft: grid 3×4 cho 12 card + card compact; Lobby handbook cập nhật 12; BattleScene biết `onceUsed` và targeted skill mới.
+    - Test: **86 shared + 19 contracts + 20 server = 125 pass**; typecheck + build sạch.
+    - Đo 1.000 trận bot pool 12: **28,6 lượt/trận** (~14,3/người), SD 6,4%, skill 21,0% số lượt; battle 90% timer + animation ~10m05s, full match ~12m11s. (P2/P3 + balance sẽ tinh chỉnh tiếp.)
+19. **P2 roster 16 hero (25/10)**:
+    - Thêm **Cleaver** (AoE), **Pyromancer** (Burn), **Venomancer** (Poison AoE), **Oracle** (heal + cleanse).
+    - Status mới: `BURN`, `POISON`, `DOT_DOWN`; DoT tick đầu turn, true damage, shield không hấp thụ, Invincible vẫn tick.
+    - Healer **overheal → shield** (cap 20% maxHP); Controller Weaken thêm **−25% DoT**.
+    - Oracle cleanse 1 debuff; passive ally <30% HP nhận −15% damage.
+    - Draft pool lên **16**; UI grid tự chuyển **4×4**; test **96 shared + 19 contracts + 20 server = 135 pass**.
+    - Đo 1.000 trận pool 16: **27,7 lượt/trận** (~13,9/người), SD 6,5%, skill 20,4%; battle 90% timer + animation ~9m47s, full match ~11m53s.
+20. **P3 roster đủ 20 hero (25/10)**:
+    - Thêm **Necromancer** (Thrall summon), **Chronarch** (CD manipulation), **Spellbreaker** (mana drain + skill tax), **Berserker** (risk/missing-HP scaling).
+    - Thrall: 280/54, untargetable, đánh target đã commit sau lượt, chết theo owner; Cleaver AoE clear Thrall.
+    - Chronarch passive: skill đầu tiên mỗi trận của mỗi ally −10 mana; Spellbreaker passive: skill địch +5 mana.
+    - Pool draft đủ **20**; UI grid tự chuyển **5×4**; test **103 shared + 19 contracts + 20 server = 142 pass**.
+    - Đo 1.000 trận pool 20: **26,8 lượt/trận** (~13,4/người), SD 5,5%, skill 20,5%; battle 90% timer + animation ~9m28s, full match ~11m34s.
+21. **JevPolicy + fallback (25/10)**:
+    - Thêm `BotPolicy` / `TurnPlan` / `GemIntent`; Jev chain **skill → target → intent** qua `typesafe/jev-1.14` + OpenRouter System One.
+    - Jev chỉ chọn hướng đi; local bot vẫn brute-force swap theo trọng số intent.
+    - `PolicyRunner` timeout toàn chain + fallback heuristic khi lỗi/option lạ/confidence thấp.
+    - `MatchRoom` có nhánh async, guard `botThinking` + kiểm tra turn/active sau await để không đánh 2 lần.
+    - `BOT_POLICY=heuristic` mặc định — test/demo không phụ thuộc API; bật `BOT_POLICY=jev` + `OPENROUTER_API_KEY`.
+    - Test: **106 shared + 19 contracts + 32 server = 157 pass**; typecheck + build sạch; live OpenRouter smoke test OK (~$0,00005/call).
+22. **Nghiên cứu model quyết định thay Jev + thử Von local (25/10)**:
+    - Refactor `JevPolicy` thành `SystemOnePolicy` dùng chung wire protocol; thêm `VonPolicy` + `BOT_POLICY=von`.
+    - Von 1.3: Apache-2.0, 395M, chạy CPU/GPU, `/v1/systemone` drop-in. Đã cài `von-sdk 1.3.7` + OpenVINO, chạy server local thật.
+    - **Kết quả thực đo:** full game state 6,5–32,6s/chain 3 call; short-state probe 0,2–1,2s nhưng intent luôn `BALANCED` (confidence 0,02–0,06) và skill sustain chọn ATTACK. `PolicyRunner` fallback heuristic 100% các case thử.
+    - Kết luận: Von **free nhưng không đủ tốt** cho state game; giữ `BOT_POLICY=jev` hoặc heuristic. JevBench 1.4: Jev composite 63,3 vs Von 27,5 vs Laya 30,3 — claim "Von kém Jev ~5%" sai.
+    - Laya: 32,8ms trên T4 nhưng accuracy decision thấp (BFCL 38,1 / API-Bank 11,5 / CLINC 3,2), English-focused → loại.
+    - Clef-flash: 9B, Apache-2.0, SystemOne-compatible, chất lượng cao nhưng cần GPU/H200 hoặc Workers AI (không free local máy này) → chưa implement.
+    - CLM-8B: 8B + Qwen3-8B encoder, cần vLLM/GPU, không drop-in đơn giản → chưa implement.
+    - Test: **106 shared + 19 contracts + 34 server = 159 pass**; typecheck + build sạch.

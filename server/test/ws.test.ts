@@ -70,7 +70,7 @@ describe('WS transport', () => {
     assert.equal(typeof body.rooms, 'number');
   });
 
-  it('2 người queue → nhận match, 2 side đối nhau, draft 8 tướng', async () => {
+  it('2 người queue → nhận match, 2 side đối nhau, draft 20 tướng', async () => {
     const a = await connect(server.url);
     const b = await connect(server.url);
 
@@ -90,7 +90,7 @@ describe('WS transport', () => {
     assert.notEqual(viewA.you, viewB.you);
     assert.equal(viewA.matchId, viewB.matchId);
     assert.equal(viewA.phase, 'draft');
-    assert.equal(viewA.draft!.pool.length, 8);
+    assert.equal(viewA.draft!.pool.length, 20);
     assert.equal(viewA.mode, 'pvp');
 
     a.ws.send(JSON.stringify({ t: 'ping' }));

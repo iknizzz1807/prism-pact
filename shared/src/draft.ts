@@ -1,8 +1,10 @@
 ﻿/**
- * Draft (ban/pick) state machine — README mục 4.2.
+ * Draft (ban/pick) state machine — README mục 4.2 + D-23.
  * Pure logic, không biết gì về mạng hay timer → server và test dùng chung.
  *
- * Thứ tự: P1 pick 2 → P2 pick 2 → P1 pick 2 → P2 pick 2 → mỗi bên ban 1 (ẩn) → done.
+ * P1: snake-8 (4 pick/bên) → ban ẩn 1/bên:
+ *   P1 → P2 → P2 → P1 → P1 → P2 → P2 → P1
+ * Nếu firstPick = P2 thì đảo side.
  */
 import { CONFIG } from './config.js';
 import { ROSTER } from './heroes.js';
@@ -25,18 +27,39 @@ export interface DraftState {
   picksLeftThisTurn: number;
   turn: Side;
   phase: DraftPhase;
+  /** Vị trí hiện tại trong pickOrder (0..7). */
+  pickIndex: number;
+  /** Toàn bộ thứ tự pick của trận — snake-8. */
+  pickOrder: Side[];
+}
+
+const SNAKE_8: readonly Side[] = ['P1', 'P2', 'P2', 'P1', 'P1', 'P2', 'P2', 'P1'];
+
+function pickOrderFor(firstPick: Side): Side[] {
+  return (firstPick === 'P1' ? [...SNAKE_8] : SNAKE_8.map(otherSide)) as Side[];
+}
+
+function consecutiveCount(order: readonly Side[], index: number): number {
+  const side = order[index];
+  if (!side) return 0;
+  let count = 0;
+  for (let i = index; i < order.length && order[i] === side; i += 1) count += 1;
+  return count;
 }
 
 export function createDraft(firstPick: Side = 'P1'): DraftState {
+  const pickOrder = pickOrderFor(firstPick);
   return {
     pool: [...ROSTER.map((h) => h.archetype)],
     picks: { P1: [], P2: [] },
     bans: { P1: [], P2: [] },
     pendingBan: { P1: null, P2: null },
     round: 1,
-    picksLeftThisTurn: CONFIG.PICKS_PER_ROUND,
-    turn: firstPick,
+    picksLeftThisTurn: consecutiveCount(pickOrder, 0),
+    turn: pickOrder[0]!,
     phase: 'pick',
+    pickIndex: 0,
+    pickOrder,
   };
 }
 
@@ -59,21 +82,19 @@ export function applyPick(state: DraftState, side: Side, hero: Archetype): boole
   state.pool = state.pool.filter((h) => h !== hero);
   state.picks[side].push(hero);
 
-  state.picksLeftThisTurn -= 1;
-  if (state.picksLeftThisTurn === 0) {
-    state.turn = otherSide(side);
-    state.picksLeftThisTurn = CONFIG.PICKS_PER_ROUND;
-  }
+  state.pickIndex += 1;
 
-  state.round = Math.min(
-    CONFIG.DRAFT_ROUNDS,
-    Math.floor(totalPicks(state) / (CONFIG.PICKS_PER_ROUND * 2)) + 1,
-  );
-
-  if (totalPicks(state) >= CONFIG.ROSTER_SIZE) {
+  // Đủ 8 pick (4/bên) → chuyển sang ban ẩn.
+  if (state.pickIndex >= CONFIG.PICKS_PER_SIDE * 2) {
     state.phase = 'ban';
+    state.picksLeftThisTurn = 0;
     state.pendingBan = { P1: null, P2: null };
+    return true;
   }
+
+  state.turn = state.pickOrder[state.pickIndex]!;
+  state.picksLeftThisTurn = consecutiveCount(state.pickOrder, state.pickIndex);
+  state.round = Math.min(2, Math.floor(state.pickIndex / 4) + 1);
 
   return true;
 }

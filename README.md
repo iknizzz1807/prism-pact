@@ -23,15 +23,15 @@
 
 | Layer | Trạng thái |
 |---|---|
-| `shared/` — board, match-3, combat, 8 skill, battle loop, draft, bot, protocol | ✅ **xong** · 77 test |
+| `shared/` — board, match-3, combat, 20 hero P3, battle loop, draft snake-8, bot, protocol | ✅ **xong** · 106 test |
 | `contracts/` — MockUSDC, MockBenqi, SeasonVault | ✅ **xong** · 19 test · deploy local OK · có `demo:season` |
-| `server/` — WS + matchmaking + MatchRoom + bot + rank + chain operator | ✅ **xong** · 20 test |
+| `server/` — WS + matchmaking + MatchRoom + bot/Jev/Von policy + rank + chain operator | ✅ **xong** · 34 test |
 | `client/` — Phaser 3 (Lobby, Draft, Battle, Season, wallet) | ✅ **xong** · build OK · E2E bot match đã kiểm chứng |
 
 ```bash
 npm install
 npm run setup:client                        # cài dependency cho client (standalone)
-npm test        # 77 test shared + 19 test contract + 20 test server
+npm test        # 106 test shared + 19 test contract + 34 test server = 159
 npm run typecheck
 npm run build   # shared + contracts + client
 npm run demo    # 2 bot đánh nhau 1 trận hoàn chỉnh, in log từng lượt
@@ -65,7 +65,7 @@ npm run deploy:fuji                         # deploy Fuji, ghi contracts/deploym
    - 4.5 Target
    - 4.6 Công thức sát thương & hồi phục
    - 4.7 Mana & Skill
-   - 4.8 Roster 8 archetype
+   - 4.8 Roster 12 P1 / 20 final
    - 4.9 Counter matrix
    - 4.10 Thắng / thua / Sudden Death
    - 4.11 Cơ chế chống snowball
@@ -86,17 +86,17 @@ npm run deploy:fuji                         # deploy Fuji, ghi contracts/deploym
 
 ## 1. TL;DR — Tóm tắt một trang
 
-**Game là gì:** Hai người chơi real-time draft đội hình 3 tướng từ pool 8 archetype (pick 4, ban 1), rồi đánh nhau trên bàn match-3 8x8 theo lượt. Mỗi lượt: dùng tối đa 1 skill → **chọn target trước** → swap 1 cặp ngọc → resolve. Ngọc ⚔️ gây sát thương, 🩸 hồi máu, 💧 nạp mana chung, 🛡️ tạo giáp.
+**Game là gì:** Hai người chơi real-time draft đội hình 3 tướng từ pool 20 archetype (pick 4, ban 1, snake-8), rồi đánh nhau trên bàn match-3 8x8 theo lượt. Mỗi lượt: dùng tối đa 1 skill → **chọn target trước** → swap 1 cặp ngọc → resolve. Ngọc ⚔️ gây sát thương, 🩸 hồi máu, 💧 nạp mana chung, 🛡️ tạo giáp.
 
 **Điểm khác biệt (3 thứ giám khảo phải nhớ):**
 
-1. **Draft đối kháng có counter thật** — 8 archetype, mỗi con 1 skill + 1 passive + điểm yếu rõ ràng. Không phải blind pick.
+1. **Draft đối kháng có counter thật** — 12 archetype P1 (20 final), mỗi con 1 skill + 1 passive + điểm yếu rõ ràng. Không phải blind pick.
 2. **Cam kết target** — target chọn *trước khi* biết mình ăn được bao nhiêu ngọc. Đây là signature mechanic, không game match-3 nào có.
 3. **No-loss prize pool** — stake USDC không mất gốc, yield sinh ra (Benqi) là giải thưởng mùa. Thua vẫn lấy lại 100% vốn.
 
 **Vì sao Avalanche:** finality 1–2s cho phép **commit hash draft on-chain mỗi trận** (1 tx/trận). Trên Ethereum chờ 12s+ thì không khả thi trong flow game. Benqi là lending native của Avalanche → yield thật.
 
-**Phạm vi T1 (phải chạy được lúc demo):** match-3 core + 8 tướng + draft live + bot + SeasonVault + draft hash on-chain.
+**Phạm vi T1 (phải chạy được lúc demo):** match-3 core + 20 tướng + draft live snake-8 + bot + SeasonVault + draft hash on-chain.
 
 **Tech:** Phaser 3 + TS + Vite · Node.js + `ws` (typed protocol) · Solidity + Hardhat · Avalanche Fuji · Benqi/MockBenqi.
 
@@ -110,7 +110,7 @@ npm run deploy:fuji                         # deploy Fuji, ghi contracts/deploym
 
 | Trụ cột | Nội dung | Cảm xúc mục tiêu |
 |---|---|---|
-| **Draft đối kháng** | Ban/pick live 2-2, 30s/lượt, counter-pick theo archetype | *"Nó pick Tank, tôi phải counter"* |
+| **Draft đối kháng** | Ban/pick live snake-8, pool 20, 30s/lượt, counter-pick theo archetype | *"Nó pick Tank, tôi phải counter"* |
 | **Match-3 có cam kết** | Target chọn trước khi xếp ngọc | *"Tôi có đọc đúng board không?"* |
 | **No-loss prize** | Stake không mất gốc, yield sinh prize pool | *"Chơi giỏi có thưởng, chơi dở không sao"* |
 
@@ -139,7 +139,7 @@ npm run deploy:fuji                         # deploy Fuji, ghi contracts/deploym
 
 | Tier | Ý nghĩa | Hạng mục |
 |---|---|---|
-| **T1** | Demo phải chạy | Board 8x8 + 4 ngọc · Bomb gem (match 4) · Turn flow đầy đủ · **8 tướng × 1 skill + 1 passive** · 3v3 draft live + ban · Sudden Death · Damage cap · **Bot PvBot** · Wallet connect + deposit USDC testnet · SeasonVault + Benqi/MockBenqi · **Draft hash commit on-chain** · SeasonScene (prize pool + projected prize) · Matchmaking realtime |
+| **T1** | Demo phải chạy | Board 8x8 + 4 ngọc · Bomb gem (match 4) · Turn flow đầy đủ · **20 tướng × 1 skill + 1 passive** · 3v3 draft live snake-8 + ban · Sudden Death · Damage cap · **Bot PvBot** · Wallet connect + deposit USDC testnet · SeasonVault + Benqi/MockBenqi · **Draft hash commit on-chain** · SeasonScene (prize pool + projected prize) · Matchmaking realtime |
 | **T2** | Nếu còn ≥5 ngày | Rainbow gem (match 5) · Auto-shield · Match result hash on-chain · Hero NFT (mint 1 demo) · EIP-712 attestation · Core wallet |
 | **T3** | Chỉ pitch / roadmap | Rune + gacha rune · Gacha tướng · Ultimate · Tournament mode · ACC/RES · Full on-chain draft per-pick · Sybil counter (slide) |
 
@@ -153,7 +153,7 @@ npm run deploy:fuji                         # deploy Fuji, ghi contracts/deploym
 
 | Yếu tố | Giá trị |
 |---|---|
-| Đội hình | **3v3**, pool 8 tướng, mỗi bên pick 4 → ban 1 → còn 3 |
+| Đội hình | **3v3**, pool 20, mỗi bên pick 4 → ban 1 → còn 3 |
 | Bàn cờ | **8x8 cố định** (không đổi theo tướng) |
 | Loại ngọc | 4: ATK / HP / Mana / Shield — **dùng chung cho 2 bên** |
 | Mana | **Bể chung toàn đội** (0–100) |
@@ -168,7 +168,7 @@ Bàn vuông 8x8 (không phải 8x6) vì màn hình portrait cần chừa không 
 
 #### 4.2.1 Luật
 
-- **Pool chung 8 tướng**, không ai xem trước đội hình đối thủ.
+- **Pool chung 20 tướng**, không ai xem trước đội hình đối thủ.
 - Draft **live, công khai real-time**: pick/ban của mỗi bên hiện ngay cho bên kia (giống LoL, không phải blind pick).
 - Không được pick trùng tướng (tướng đã pick/banned bị loại khỏi pool cho cả 2).
 - Mỗi lượt pick: **30s**. Hết giờ → server tự random 1 tướng còn lại (chống AFK câu giờ).
@@ -177,15 +177,14 @@ Bàn vuông 8x8 (không phải 8x6) vì màn hình portrait cần chừa không 
 #### 4.2.2 Thứ tự chính xác
 
 ```
-VÒNG 1:  P1 pick 2  →  P2 pick 2
-VÒNG 2:  P1 pick 2  →  P2 pick 2        → mỗi bên đủ 4 tướng
-BAN:     P1 ban 1 (ẩn) ∥ P2 ban 1 (ẩn)  → 20s
-KẾT QUẢ: mỗi bên còn 3 tướng → vào trận
+PICK (snake-8):  P1 → P2 → P2 → P1 → P1 → P2 → P2 → P1
+BAN:             P1 ban 1 (ẩn) ∥ P2 ban 1 (ẩn)  → 20s
+KẾT QUẢ:         mỗi bên còn 3 tướng → vào trận
 ```
 
-> **Đã sửa so với docs cũ:** bản cũ ghi "lặp 4 round" → dẫn tới 8 tướng/bên, mâu thuẫn với "pick 4". Nay chốt **2 vòng × 2 pick**.
+> **Đã sửa so với docs cũ:** bản cũ là 2-2-2-2 (P2 luôn có last pick). Nay chốt **snake-8** để cân bằng first-pick/last-pick; P1 và P2 đều có một pick đơn và hai pick đôi.
 >
-> **Vì sao pool 8 vừa khít:** 2 người × 4 pick = **đúng 8 tướng**, tức toàn bộ pool được pick hết. Ban 1 tướng của đối thủ nghĩa là loại 1 trong 4 tướng họ đã pick → **không cần thêm tướng ngoài pool**. Kết quả mỗi trận: **6 tướng vào sân (3/bên) + 2 tướng bị ban**. Không có tướng nào "không được dùng" ngoài ý muốn.
+> **Với pool 20:** 2 người × 4 pick = 8 tướng được pick; ban 1/bên → 6 vào sân, 12 tướng không được pick — đây là nguồn variety, không phải lãng phí.
 
 #### 4.2.3 Ai là First Pick?
 
@@ -214,7 +213,7 @@ commitDraft(bytes32 matchId, bytes32 draftHash)
 ├─────────────────────────────┤
 │ Địch: [Tank] [?] [?] [?]    │  ← hiện dần khi họ pick
 ├─────────────────────────────┤
-│ Roster 2x4 (8 tướng)        │  ← tap pick, tướng đã dùng bị mờ
+│ Roster 5x4 (20 tướng)       │  ← tap pick, tướng đã dùng bị mờ
 ├─────────────────────────────┤
 │ Mình: [Healer][Burst]       │
 └─────────────────────────────┘
@@ -226,10 +225,10 @@ commitDraft(bytes32 matchId, bytes32 draftHash)
 
 | Ngọc | Icon | Khi match | Ghi chú |
 |---|---|---|---|
-| **ATK** | ⚔️ | Mỗi **gem** ⚔️ nổ = **1 hit** đánh thường lên tướng đang **target** | Có damage cap 5 hit/lượt (4.11) |
-| **HP** | 🩸 | Hồi máu cho **cả đội** | +1% maxHP/tướng mỗi gem |
-| **Mana** | 💧 | Nạp **bể mana chung** | +1 mana/gem |
-| **Shield** | 🛡️ | Tạo giáp cho **cả đội** | +1% maxHP/gem, cap 60% maxHP/tướng |
+| **ATK** | ⚔️ | Mỗi **gem** ⚔️ nổ = **1 hit** đánh thường lên tướng đang **target** | Có damage cap 6 hit/lượt (4.11) |
+| **HP** | 🩸 | Hồi máu cho **cả đội** | +0.6% maxHP/tướng mỗi gem |
+| **Mana** | 💧 | Nạp **bể mana chung** | +2 mana/gem |
+| **Shield** | 🛡️ | Tạo giáp cho **cả đội** | +0.6% maxHP/gem, cap 60% maxHP/tướng |
 
 Mọi ngọc **dùng chung cho 2 bên** — không phân biệt màu theo tướng (khác Marvel Puzzle Quest). Lý do: giảm phức tạp UI trên portrait, và độ sâu đã nằm ở draft.
 
@@ -328,8 +327,8 @@ shield_remaining -= min(shield_remaining, mitigated)
 #### 4.6.2 Hồi máu
 
 ```
-heal_per_gem = ceil(maxHP(hero) * 0.01)
-// match 3 = 3 gem → hồi 3% maxHP cho mỗi tướng còn sống
+heal_per_gem = ceil(maxHP(hero) * 0.006)
+// match 3 = 3 gem → hồi 1.8% maxHP cho mỗi tướng còn sống
 // hồi vượt maxHP bị cắt về maxHP
 ```
 
@@ -341,8 +340,9 @@ heal_per_gem = ceil(maxHP(hero) * 0.01)
 
 #### 4.6.4 Mana
 
-- Mỗi gem 💧 nổ = **+1 mana** vào bể chung (0–100, dư bị cắt).
-- Match 3 = 3 mana; cascade nhiều wave cộng dồn.
+- Mỗi gem 💧 nổ = **+2 mana** vào bể chung (0–100, dư bị cắt).
+- Match 3 = 6 mana; cascade nhiều wave cộng dồn.
+- Đầu trận mỗi bên có **25 mana** (STARTING_MANA).
 - Khi damage bị cap (4.11), mỗi hit vượt cap đổi thành **+1 mana** (soft-landing thay vì mất trắng).
 
 ### 4.7 Mana & Skill
@@ -354,20 +354,47 @@ heal_per_gem = ceil(maxHP(hero) * 0.01)
 - Skill **chỉ gây sát thương / buff / debuff thuần** ở T1 — **chưa tác động lên bàn cờ** (đổi màu ngọc, tạo bomb...) để giảm scope.
 - **Không có Ultimate ở T1.** Nếu làm sau: điều kiện kích hoạt cực khắt khe, chỉ 1–2 tướng đặc biệt có (né "combo Exodia").
 
-### 4.8 Roster 8 archetype
+### 4.8 Roster 20
 
 Mỗi tướng: **1 skill độc + 1 passive + 1 điểm yếu rõ ràng**. Đây là linh hồn game — nếu cắt phần này, draft vô nghĩa.
 
 | # | Archetype | HP | ATK | DEF | Skill | Mana | CD | Passive |
 |---|---|---|---|---|---|---|---|---|
-| 1 | **Tank** | 1800 | 50 | 60 | **Taunt** — kéo toàn bộ target của địch về mình trong 1 lượt của địch | 40 | 3 | +30% DEF khi HP < 50% |
-| 2 | **Burst** | 900 | 120 | 15 | **Nuke** — 3× ATK lên 1 target | 50 | 3 | +20% ATK khi team còn đủ 3 người |
-| 3 | **Healer** | 1100 | 40 | 25 | **Mass Heal** — hồi 40% maxHP cả team | 60 | 4 | Tự hồi 5% maxHP đầu mỗi lượt của mình |
-| 4 | **Controller** | 1000 | 60 | 20 | **Weaken** — giảm 50% ATK target trong 2 lượt | 40 | 3 | Skill trúng → +10 mana team |
-| 5 | **Buffer** | 1000 | 50 | 30 | **Rally** — +30% ATK và shield 20% maxHP cả team trong 2 lượt | 50 | 3 | Team +10% ATK |
-| 6 | **Debuffer** | 950 | 55 | 20 | **Strip** — giảm 50% DEF target trong 2 lượt | 40 | 3 | Team +15% damage lên target đang bị debuff |
-| 7 | **Assassin** | 850 | 100 | 10 | **Execute** — 2.5× ATK, bỏ qua 50% DEF, đánh tướng địch HP thấp nhất | 50 | 3 | +30% damage lên target < 30% HP |
-| 8 | **Bruiser** | 1400 | 80 | 35 | **Lifesteal Strike** — 2× ATK + hồi 50% damage gây ra | 45 | 3 | Team +15% lifesteal |
+| 1 | **Tank** | 1440 | 60 | 60 | **Taunt** — kéo toàn bộ target của địch về mình trong 1 lượt của địch | 32 | 3 | +30% DEF khi HP < 50% |
+| 2 | **Burst** | 720 | 144 | 15 | **Nuke** — 3× ATK lên 1 target | 40 | 3 | +20% ATK khi team còn đủ 3 người |
+| 3 | **Healer** | 880 | 48 | 25 | **Mass Heal** — hồi 40% maxHP cả team | 48 | 4 | Tự hồi 5% maxHP đầu mỗi lượt của mình |
+| 4 | **Controller** | 800 | 72 | 20 | **Weaken** — giảm 50% ATK target trong 2 lượt | 32 | 3 | Skill trúng → +10 mana team |
+| 5 | **Buffer** | 800 | 60 | 30 | **Rally** — +30% ATK và shield 20% maxHP cả team trong 2 lượt | 40 | 3 | Team +10% ATK |
+| 6 | **Debuffer** | 760 | 66 | 20 | **Strip** — giảm 50% DEF target trong 2 lượt | 32 | 3 | Team +15% damage lên target đang bị debuff |
+| 7 | **Assassin** | 680 | 120 | 10 | **Execute** — 2.5× ATK, bỏ qua 50% DEF, đánh tướng địch HP thấp nhất | 40 | 3 | +30% damage lên target < 30% HP |
+| 8 | **Bruiser** | 1120 | 96 | 35 | **Lifesteal Strike** — 2× ATK + hồi 50% damage gây ra | 36 | 3 | Team +15% lifesteal |
+
+#### 4.8.1 Bốn hero P1 mới (25/10)
+
+| # | Archetype | Role | HP / ATK / DEF | Skill (mana · CD) | Passive |
+|---|---|---|---|---|---|
+| 9 | **Paladin** | Tank/sustain | 1400 / 66 / 55 | **Divine Aegis** 40 · 4 — 1 ally Invincible 1 lượt; 1 lần/trận | Ally <40% HP +15% DEF |
+| 10 | **Juggernaut** | Tank/counter | 1520 / 54 / 65 | **Iron Thorns** 36 · 3 — 2 lượt phản 40% basic, +20% DEF | Bị basic hit → +5% ATK (cap +20%) |
+| 11 | **Executioner** | Assassin/anti-tank | 800 / 114 / 20 | **Sever** 40 · 4 — 1.8× ATK + 12% maxHP true, ignore 40% DEF | +25% damage vs DEF ≥40 |
+| 12 | **Sniper** | Assassin/shield-break | 640 / 138 / 12 | **Deadshot** 36 · 3 — 2.4× ATK, xuyên shield; +30% nếu target có shield | +15% ATK vs target full HP |
+
+#### 4.8.2 Bốn hero P2 mới (25/10)
+
+| # | Archetype | Role | HP / ATK / DEF | Skill (mana · CD) | Passive |
+|---|---|---|---|---|---|
+| 13 | **Cleaver** | Bruiser/AoE | 784 / 126 / 15 | **Amputation** 48 · 4 — 1.3× ATK cả 3 địch, +10% mỗi địch còn sống | +15% ATK khi còn 3 địch |
+| 14 | **Pyromancer** | Mage/DoT | 760 / 90 / 20 | **Ignite** 36 · 3 — 1.2× ATK + Burn 4% maxHP/lượt 2 lượt | +15% damage vs target đang Burn |
+| 15 | **Venomancer** | Mage/AoE DoT | 840 / 72 / 25 | **Toxic Miasma** 40 · 4 — Poison 3% maxHP/lượt 2 lượt lên cả 3 địch, xuyên shield | +1% poison damage mỗi debuff khác |
+| 16 | **Oracle** | Healer/cleanse | 920 / 42 / 28 | **Mend** 36 · 3 — hồi 35% maxHP cho ally thấp nhất + cleanse 1 debuff | Ally <30% HP nhận −15% damage |
+
+#### 4.8.3 Bốn hero P3 (25/10)
+
+| # | Archetype | Role | HP / ATK / DEF | Skill (mana · CD) | Passive |
+|---|---|---|---|---|---|
+| 17 | **Necromancer** | Summoner | 760 / 72 / 20 | **Raise Thrall** 48 · 5 — Thrall 280 HP / 54 ATK, đánh target đã commit sau lượt, chết theo owner | +20 mana khi ally chết |
+| 18 | **Chronarch** | Controller/tempo | 800 / 60 / 25 | **Time Warp** 40 · 4 — +1 CD toàn bộ skill địch (cap +2), −1 CD 1 ally | Skill đầu tiên mỗi trận của mỗi ally −10 mana |
+| 19 | **Spellbreaker** | Controller/mana | 920 / 78 / 30 | **Mana Drain** 36 · 3 — đốt 25 mana địch, nhận 15, strip 1 buff | Skill địch +5 mana cost |
+| 20 | **Berserker** | Bruiser/risk | 1200 / 108 / 25 | **Reckless Swing** 32 · 3 — 2.2× ATK, mất 10% HP hiện tại (không chết), +25% ATK 2 lượt | +1% ATK mỗi 2% HP đã mất (cap +30%) |
 
 **Chi phí code:** mỗi skill ~20–40 dòng, mỗi passive ~10 dòng hook đầu turn. Tổng thêm ~1.5 ngày so với roster đồng nhất. Xứng đáng.
 
@@ -410,11 +437,11 @@ RNG là phần cốt lõi của match-3 — không né tránh, nhưng phải **c
 
 | Cơ chế | Mô tả | Tier |
 |---|---|---|
-| **Damage cap** | Tối đa **5 hit ⚔️** được tính damage/lượt. Hit vượt cap → **+1 mana** mỗi hit | **T1** |
+| **Damage cap** | Tối đa **6 hit ⚔️** được tính damage/lượt. Hit vượt cap → **+1 mana** mỗi hit | **T1** |
 | **Auto-shield** | Nhận **>40% maxHP** trong 1 lượt → tự sinh giáp chặn phần vượt ngưỡng | T2 |
 | **Không combo multiplier** | Cascade nhiều wave không nhân damage | **T1** |
 
-> **Quan trọng:** cả 3 ngưỡng số (5 hit, 40%, 5% Sudden Death) đều là **knob playtest**, không phải chân lý. Không đoán trước khi có bản chạy.
+> **Quan trọng:** cả 3 ngưỡng số (6 hit, 40%, 5% Sudden Death) đều là **knob playtest**, không phải chân lý. Không đoán trước khi có bản chạy.
 
 ### 4.12 Bảng số liệu khởi điểm (config)
 
@@ -425,7 +452,7 @@ export const CONFIG = {
   // Board
   BOARD_SIZE: 8,
   GEM_TYPES: ['ATK', 'HP', 'MANA', 'SHIELD'] as const,
-  GEM_SPAWN_WEIGHT: { ATK: 0.25, HP: 0.25, MANA: 0.25, SHIELD: 0.25 },
+  GEM_SPAWN_WEIGHT: { ATK: 0.30, HP: 0.2333, MANA: 0.2333, SHIELD: 0.2334 },
 
   // Timing (ms)
   TURN_TIME_MS: 20_000,
@@ -438,13 +465,14 @@ export const CONFIG = {
   // Match rules
   MAX_TURNS: 50,               // tổng số lượt (25 mỗi bên) → kích hoạt Sudden Death
   SUDDEN_DEATH_HP_PCT: 0.05,   // 5% maxHP/lượt/bên
-  DAMAGE_CAP_HITS: 5,
+  DAMAGE_CAP_HITS: 6,
 
   // Gem values
-  MANA_PER_GEM: 1,
+  MANA_PER_GEM: 2,
   MANA_MAX: 100,
-  HEAL_PCT_PER_GEM: 0.01,      // 1% maxHP
-  SHIELD_PCT_PER_GEM: 0.01,    // 1% maxHP
+  STARTING_MANA: 25,           // mana đầu trận mỗi bên
+  HEAL_PCT_PER_GEM: 0.006,     // 0.6% maxHP
+  SHIELD_PCT_PER_GEM: 0.006,   // 0.6% maxHP
   SHIELD_CAP_PCT: 0.60,        // 60% maxHP/tướng
 
   // Damage
@@ -455,7 +483,7 @@ export const CONFIG = {
   PICKS_PER_SIDE: 4,
   PICKS_PER_ROUND: 2,
   BANS_PER_SIDE: 1,
-  ROSTER_SIZE: 8,
+  ROSTER_SIZE: 20, // full roster
 
   // Economy
   MIN_STAKE_USDC: 50,
@@ -500,7 +528,82 @@ pick swap có score cao nhất; tie → random
 
 **Cost:** ~1 ngày code. Chạy trên server, không cần client riêng.
 
-### 5.3 Chế độ chơi
+### 5.3 JevPolicy (tuỳ chọn, mặc định tắt)
+
+Server có thể dùng **TypeSafe Jev** (`typesafe/jev-1.14`) qua OpenRouter System One API để
+chọn hướng đi cấp cao cho bot. Đây **không** phải bot mới thay thế toàn bộ:
+
+```
+Jev chọn: skill → target → intent (FINISH / SUSTAIN / CHARGE / CLEANSE / SETUP / BALANCED)
+Local bot: intent → trọng số ngọc → brute-force swap (112 nước)
+```
+
+- Jev **không** chọn từng viên ngọc và **không** tính damage.
+- Mỗi call nhận state đã cập nhật quyết định trước (chain tuần tự, không hỏi song song).
+- `intent` map sang trọng số `ATK/HP/MANA/SHIELD`; ví dụ `FINISH` ưu tiên ATK, `SUSTAIN` ưu tiên HP/SHIELD.
+- Fallback về heuristic cũ khi: lỗi mạng, HTTP lỗi, timeout, option lạ, thiếu answer,
+  `confidence < JEV_MIN_CONFIDENCE` hoặc `top1 − top2 < JEV_MIN_MARGIN`.
+- `BOT_POLICY=heuristic` (mặc định) giữ nguyên hành vi cũ, không gọi mạng → test/demo không phụ thuộc API.
+
+Cấu hình (`server/.env`, xem `server/.env.example`):
+
+```env
+BOT_POLICY=jev
+OPENROUTER_API_KEY=...          # không commit; rotate nếu đã lộ
+JEV_MODEL=typesafe/jev-1.14
+JEV_BASE_URL=https://openrouter.ai/api/v1/systemone
+JEV_TIMEOUT_MS=6000             # toàn bộ chain skill → target → intent
+JEV_MIN_CONFIDENCE=0.2
+JEV_MIN_MARGIN=0.05
+JEV_LOG_DECISIONS=false
+```
+
+Chi phí đo thực tế: ~**$0.00005/call**, ~650–700ms/call; một trận PvBot đầy đủ
+(~27 lượt × 3 call) khoảng **$0.004–0.005**. Latency 3 call/turn ~2s, vẫn dưới timer 20s.
+
+Code: `server/src/bots/` — `types.ts`, `heuristicPolicy.ts`, `jevPolicy.ts`,
+`policyRunner.ts`, `config.ts`. `MatchRoom` có nhánh async + guard chống đánh 2 lần
+nếu timeout/trận kết thúc trong lúc chờ Jev.
+
+### 5.4 Von (free local) và các lựa chọn khác
+
+`BOT_POLICY=von` dùng cùng wire protocol `/v1/systemone`, chạy local, không cần API key:
+
+```bash
+pip install "von-sdk>=1.3.7"
+von serve --host 127.0.0.1 --port 8000 --device openvino --no-chains
+```
+
+```env
+BOT_POLICY=von
+VON_BASE_URL=http://127.0.0.1:8000/v1/systemone
+VON_TIMEOUT_MS=2000
+```
+
+**Trạng thái: experimental — không khuyến nghị làm policy chính.** Kết quả đo thật
+trên máy Windows + RTX 4060 (OpenVINO):
+
+- 3 state finish/sustain/cleanse: Von trả `BALANCED` cả 3, confidence 0.02–0.06
+  → `PolicyRunner` fallback heuristic.
+- Short-state probe: nhanh hơn (0.2–1.2s) nhưng vẫn chọn `BALANCED` cho
+  FINISH/SUSTAIN/CLEANSE và `ATTACK` cho team 20% HP.
+- Full game state: 6.5–32.6s cho cả chain 3 call; timeout 2s → fallback.
+- JevBench 1.4: Jev 1.13 composite **63.3**, Von 1.2 **27.5**, Laya **30.3**.
+  Claim "Von chỉ kém Jev khoảng 5%" không khớp benchmark công khai.
+
+| Model | License | Size / runtime | SystemOne API | Kết luận cho Prism Pact |
+|---|---|---|---|---|
+| **Jev 1.14** | closed, hosted | API | ✅ | Chất lượng tốt nhất; dùng chính |
+| **Von 1.3** | Apache-2.0 | 395M, CPU/GPU | ✅ drop-in | Free/local, nhưng yếu trên state game; để experimental + fallback |
+| **Laya** | Apache-2.0 | 421M ModernBERT | ⚠️ runtime riêng | 32.8ms trên T4; accuracy decision thấp (BFCL 38.1, API-Bank 11.5, CLINC 3.2); English-focused |
+| **Clef-flash** | Apache-2.0 | 9B multimodal | ✅ | Chất lượng cao, nhưng cần GPU/H200 hoặc Workers AI (không free local trên máy này) |
+| **CLM-8B** | Apache-2.0 | 8B + Qwen3-8B encoder | ⚠️ cần vLLM | Nhanh nhờ cache state/action, nhưng cần GPU; không drop-in đơn giản |
+
+Von đã archive (10/2026); model kế thừa được khuyến nghị là
+`LiquidAI/d1-omni-600M`. Với bot Prism Pact, **Jev vẫn là lựa chọn chất lượng**;
+Von chỉ đáng thử nếu cần zero-cost và chấp nhận fallback thường xuyên.
+
+### 5.5 Chế độ chơi
 
 | Mode | Mô tả | Tier |
 |---|---|---|
@@ -696,14 +799,14 @@ prism-pact/
 │   │   ├── side.ts              # otherSide()
 │   │   ├── match3.ts            # swap, findRuns, cascade, bomb, shuffle
 │   │   ├── combat.ts            # damage, heal, shield, mana, cap, taunt
-│   │   ├── heroes.ts            # ROSTER 8 archetype
+│   │   ├── heroes.ts            # ROSTER 20
 │   │   ├── skills.ts            # 8 skill + validation
 │   │   ├── battle.ts            # 1 lượt hoàn chỉnh + điều kiện thắng
-│   │   ├── draft.ts             # state machine ban/pick 2-2
+│   │   ├── draft.ts             # state machine ban/pick snake-8
 │   │   ├── bot.ts               # bot chọn swap + skill
 │   │   ├── protocol.ts          # ClientMessage / ServerMessage / MatchView
 │   │   └── index.ts
-│   ├── test/                    # 76 test (node:test)
+│   ├── test/                    # 103 test (node:test)
 │   └── scripts/demo.ts          # CLI: 2 bot đánh 1 trận
 ├── contracts/                   # ✅ ĐÃ CÓ — Hardhat + Solidity 0.8.24
 │   ├── contracts/
@@ -714,7 +817,7 @@ prism-pact/
 │   ├── test/                    # 19 test (deposit, yield, prize, invariant)
 │   ├── scripts/deploy.ts        # deploy Fuji + ghi deployments/<network>.json
 │   └── .env.example
-├── server/                      # ✅ ĐÃ CÓ — 15 test
+├── server/                      # ✅ ĐÃ CÓ — 20 test
 │   ├── src/
 │   │   ├── index.ts             # bootstrap + graceful shutdown
 │   │   ├── server.ts            # HTTP /health + WS + matchmaking
@@ -947,7 +1050,7 @@ Client (user wallet)
 ├─────────────────────┤
 │ Địch: ? ?           │
 ├─────────────────────┤
-│ Roster 2x4 (8 tướng)│ ← tap pick
+│ Roster 5x4 (20 tướng)│ ← tap pick
 ├─────────────────────┤
 │ Mình: H1 H3         │
 └─────────────────────┘
@@ -1039,7 +1142,7 @@ Không nằm trong 30 ngày của cuộc thi, nhưng có sẵn — dùng để g
 | `shared/match3.ts`: match detect, swap, cascade, refill, shuffle | Unit test xanh |
 | Bomb gem (match 4) | Test xanh |
 | Battle logic: mana, heal, shield, damage, target | Test xanh |
-| 8 tướng: skill + passive | Test xanh |
+| 20 tướng: skill + passive | Test xanh |
 | Bot (draft + turn) | Bot tự chơi hết 1 trận offline |
 | SeasonVault + MockBenqi trên Fuji | Deposit/withdraw chạy, test xanh |
 
@@ -1048,7 +1151,7 @@ Không nằm trong 30 ngày của cuộc thi, nhưng có sẵn — dùng để g
 | Việc | Deliverable |
 |---|---|
 | Matchmaking + `MatchRoom` (draft → ban → battle) | 2 browser vào cùng trận |
-| Draft live 2-2 + ban ẩn | 2 browser draft xong ra 3v3 |
+| Draft live snake-8 + ban ẩn | 2 browser draft xong ra 3v3 |
 | BattleScene + DraftScene render từ state | **2 browser chơi 1 trận đầy đủ** |
 | Reconnect / timeout / forfeit | Test case thủ công |
 | Draft hash commit on-chain | Tx hiện trên Snowtrace |
@@ -1087,7 +1190,7 @@ Chuẩn bị **2 browser + 1 video backup**.
 |---|---|---|
 | 0:00–0:30 | Mở SeasonScene: `Deposited 100 USDC · Prize Pool 519 USDC · Rank #12` | "Không mất gốc. Yield là prize." |
 | 0:30–1:15 | Connect wallet → deposit → tx confirm 1–2s | "Avalanche finality — đây là lý do chọn chain này." |
-| 1:15–2:15 | Draft live 2-2: counter-pick (địch Tank → mình Controller), ban 1 | Mở tooltip counter matrix: "Đây là chiều sâu chiến thuật." |
+| 1:15–2:15 | Draft live snake-8: counter-pick (địch Tank → mình Controller), ban 1 | Mở tooltip counter matrix: "Đây là chiều sâu chiến thuật." |
 | 2:15–2:30 | Cuối draft → tx `commitDraft` → mở Snowtrace | "Draft không thể sửa. Fairness on-chain." |
 | 2:30–4:15 | Battle: target cam kết → ăn 4 ngọc ATK → bomb gem → skill → đổi target | "Target chọn trước khi biết mình ăn gì — đây là signature." |
 | 4:15–4:45 | Kết thúc trận: win screen + rank +25 + projected prize tăng | "Kỹ năng → rank → prize." |
@@ -1107,7 +1210,7 @@ Chuẩn bị **2 browser + 1 video backup**.
 - PvP game cần fairness chứng minh được, nhưng gần như không ai làm.
 
 **Slide 2 — Giải pháp**
-- Draft đối kháng 8 archetype → counter-pick thật.
+- Draft đối kháng 12 archetype P1 (20 final) → counter-pick thật.
 - Match-3 có cam kết target → quyết định rủi ro.
 - No-loss prize pool → không ai mất tiền.
 
@@ -1144,7 +1247,7 @@ Chuẩn bị **2 browser + 1 video backup**.
 
 | Rủi ro | Mức độ | Giảm thiểu |
 |---|---|---|
-| Networking realtime khó nhất, dễ trễ | **Cao** | Đã làm xong sớm ở Tuần 0 (15 test, gồm transport WS); bot là fallback |
+| Networking realtime khó nhất, dễ trễ | **Cao** | Đã làm xong sớm ở Tuần 0 (20 test, gồm transport WS); bot là fallback |
 | Học Phaser 3 mất thời gian | Trung bình | Dùng tutorial + asset pack có sẵn, không tự vẽ |
 | Benqi không có pool USDC trên Fuji | Trung bình | MockBenqi sau interface chung → đổi 1 dòng |
 | Faucet Fuji hết token lúc demo | Trung bình | Chuẩn bị **3 ví có sẵn USDC test** trước 1 ngày |
@@ -1155,8 +1258,8 @@ Chuẩn bị **2 browser + 1 video backup**.
 
 | # | Câu hỏi | Deadline quyết định |
 |---|---|---|
-| 1 | Draft order có cần snake (P2 pick trước ở vòng 2) để cân bằng FP không? | Trước 8/11 |
-| 2 | Damage cap 5 hit có đúng cảm giác không? | Playtest 15/11 |
+| 1 | ~~Draft order có cần snake để cân bằng FP không?~~ → **đã chốt snake-8 (D-24)** | Xong 25/10 |
+| 2 | Damage cap 6 hit có đúng cảm giác không? | Playtest 15/11 |
 | 3 | Sudden Death 5%/lượt có quá nhanh/chậm? | Playtest 15/11 |
 | 4 | Có cần auto-shield ở T1 thay vì T2? | 15/11 (quyết định cuối) |
 | 5 | Prize mùa 1: sponsor 500 hay 1000 USDC? | Trước demo |
@@ -1181,7 +1284,7 @@ Các quyết định **đã chốt**, dùng để chặn tranh luận lại gi�
 | ID | Quyết định | Lý do | Ngày |
 |---|---|---|---|
 | **D-01** | Đòn đánh thường dùng **round-robin theo slot đội hình** | ATK/DEF từng tướng có nghĩa; giết tướng làm giảm damage; dễ visualize | 23/10 |
-| **D-02** | Draft = **2 vòng × 2 pick** (không phải 4 vòng) | Docs cũ mâu thuẫn: "4 round" ra 8 tướng/bên nhưng vẫn ghi pick 4 | 23/10 |
+| **D-02** | Draft = **2 vòng × 2 pick** (không phải 4 vòng) — *đã thay bằng D-24 snake-8* | Docs cũ mâu thuẫn: "4 round" ra 8 tướng/bên nhưng vẫn ghi pick 4 | 23/10 |
 | **D-03** | Ban **đồng thời + ẩn** (20s) | Tránh lợi thế thông tin cho người ban sau; không cần thêm luật order | 23/10 |
 | **D-04** | Roster = **1 skill + 1 passive** mỗi tướng | Docs cũ mâu thuẫn "1 skill" vs "2 skill"; 1+1 đủ tạo counter | 23/10 |
 | **D-05** | **Bỏ ACC/RES** khỏi T1, đẩy sang T3 | Thêm 1 lớp RNG nữa làm playtest khó; chưa cần để chứng minh concept | 23/10 |
@@ -1202,6 +1305,10 @@ Các quyết định **đã chốt**, dùng để chặn tranh luận lại gi�
 | **D-20** | Draft **khoá thao tác** cho tới khi server trả state | Người chơi bấm nhanh 3 lần trong lượt 2-pick → lần 3 bị server trả "chưa tới lượt". Khoá + toast "đang gửi…" loại bỏ hoàn toàn | 23/10 |
 | **D-21** | Server gửi **TurnAnimation** (runs/cleared/moves/spawned/board từng wave) | Snapshot cuối lượt không thể animate. Client phát lại đúng thứ tự: swap → nối → nổ → rơi, và **đối thủ cũng thấy** nước đi | 23/10 |
 | **D-22** | `TurnAnimation` gửi kèm **`swapBoard`** (bàn ngay sau swap) | Client tự suy ra bàn sau swap bị lệch khi state đến trễ → tia nối sai quân. Đo thực tế: 4 ô sai/18 wave → **0/13** sau khi dùng swapBoard | 23/10 |
+| **D-23** | **Balance patch 25/10**: HP ×0.8, ATK ×1.2, heal/shield 0.6%/gem, damage cap 6, ATK gem 30%, start mana 25, mana/gem 2, skill cost −20%; **giữ timer 20s** | 1.000 trận bot: 62,3 lượt/trận (84% Sudden Death) → 24,8 lượt (0,2% SD); battle 90% timer + animation ~8m45s; mật độ skill 10,4% → 21,9% | 25/10 |
+| **D-24** | **Draft snake-8** (P1→P2→P2→P1→P1→P2→P2→P1), pool 16 P2, kết thúc pick theo `PICKS_PER_SIDE × 2` thay vì `ROSTER_SIZE` | Loại bỏ lợi thế last-pick của P2; pool 16 đủ cho 4 pick/bên + 1 ban/bên; mở đường lên 20 mà không sửa logic draft | 25/10 |
+| **D-25** | **P2 roster**: Cleaver, Pyromancer, Venomancer, Oracle; thêm Burn/Poison/DOT_DOWN/Cleanse, Healer overheal → shield | Meta AoE/DoT; Oracle là cleanse chống DoT; Controller giảm 25% DoT | 25/10 |
+| **D-26** | **P3 roster**: Necromancer, Chronarch, Spellbreaker, Berserker; thêm Thrall, CD manipulation, mana drain, skill tax, missing-HP scaling; pool đủ 20 | Hoàn tất roster 20; Thrall tạo áp lực target thứ hai; Chronarch/Spellbreaker tạo meta tempo/mana; Berserker là bruiser risk-reward | 25/10 |
 
 ### Những gì đã cắt khỏi bản v1 (và lý do)
 

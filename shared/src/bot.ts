@@ -10,7 +10,10 @@ import { otherSide } from './side.js';
 import type { Rng } from './rng.js';
 
 /** Trọng số ưu tiên ngọc khi bot chọn nước đi. */
-const WEIGHT: Record<GemType, number> = {
+export type GemWeights = Record<GemType, number>;
+
+/** Trọng số mặc định — cũng là intent BALANCED của JevPolicy. */
+export const DEFAULT_GEM_WEIGHTS: Readonly<GemWeights> = {
   ATK: 2,
   HP: 0.6,
   MANA: 0.6,
@@ -18,23 +21,37 @@ const WEIGHT: Record<GemType, number> = {
 };
 
 /** Điểm của 1 swap = tổng (trọng số × số gem) của các run liên quan tới 2 ô vừa đổi. */
-export function scoreSwap(board: Board, from: Index, to: Index): number {
+export function scoreSwapWithWeights(
+  board: Board,
+  from: Index,
+  to: Index,
+  weights: Readonly<GemWeights>,
+): number {
   const clone = cloneBoard(board);
   swapInPlace(clone, from, to);
   const runs = findRuns(clone).filter((r) => r.cells.includes(from) || r.cells.includes(to));
   let score = 0;
-  for (const run of runs) score += WEIGHT[run.type] * run.cells.length;
+  for (const run of runs) score += weights[run.type] * run.cells.length;
   return score;
 }
 
-export function chooseSwap(board: Board, rng: Rng): [Index, Index] | null {
+/** Điểm của 1 swap với trọng số mặc định. */
+export function scoreSwap(board: Board, from: Index, to: Index): number {
+  return scoreSwapWithWeights(board, from, to, DEFAULT_GEM_WEIGHTS);
+}
+
+export function chooseSwapWithWeights(
+  board: Board,
+  rng: Rng,
+  weights: Readonly<GemWeights>,
+): [Index, Index] | null {
   const moves = findMoves(board);
   if (moves.length === 0) return null;
 
   let bestScore = Number.NEGATIVE_INFINITY;
   let best: Array<[Index, Index]> = [];
   for (const move of moves) {
-    const score = scoreSwap(board, move[0], move[1]);
+    const score = scoreSwapWithWeights(board, move[0], move[1], weights);
     if (score > bestScore) {
       bestScore = score;
       best = [move];
@@ -43,6 +60,10 @@ export function chooseSwap(board: Board, rng: Rng): [Index, Index] | null {
     }
   }
   return best[Math.floor(rng() * best.length)] ?? null;
+}
+
+export function chooseSwap(board: Board, rng: Rng): [Index, Index] | null {
+  return chooseSwapWithWeights(board, rng, DEFAULT_GEM_WEIGHTS);
 }
 
 export interface BotOptions {

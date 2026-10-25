@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { CONFIG, heroDef, otherSide } from '@prism-pact/shared';
+import { CONFIG, ROSTER, heroDef, otherSide } from '@prism-pact/shared';
 import type { Archetype, DraftView, MatchView, Side } from '@prism-pact/shared';
 import { gameClient } from '../net/gameClient';
 import { matchStore } from '../state';
@@ -108,7 +108,7 @@ export class DraftScene extends Phaser.Scene {
 
     // Center: Roster 8 tướng (width 632px)
     panel(this, 324, 92, 632, 608, { fill: COLORS.panelAlt, fillAlpha: 0.65 });
-    this.poolLabel = sectionTitle(this, 344, 108, 'DANH SÁCH 8 TƯỚNG (ROSTER)');
+    this.poolLabel = sectionTitle(this, 344, 108, `DANH SÁCH ${ROSTER.length} TƯỚNG (ROSTER)`);
     label(this, 936, 108, 'NHẤP ĐỂ CHỌN / XEM CHI TIẾT', 11, COLORS.dim, 'bold').setOrigin(1, 0);
 
     // Right: Đội địch & Nhật ký (width 288px)
@@ -220,7 +220,7 @@ export class DraftScene extends Phaser.Scene {
         showTurnNotice(
           this,
           360,
-          yourTurn ? 'LƯỢT CỦA BẠN — CHỌN 2 TƯỚNG' : 'LƯỢT ĐỐI THỦ ĐANG CHỌN…',
+          yourTurn ? `LƯỢT CỦA BẠN — CHỌN ${draft.picksLeftThisTurn} TƯỚNG` : 'LƯỢT ĐỐI THỦ ĐANG CHỌN…',
           yourTurn ? COLORS.accent : COLORS.enemy,
         );
       } else if (draft.phase === 'ban' && draft.yourBan === null) {
@@ -280,29 +280,28 @@ export class DraftScene extends Phaser.Scene {
     this.rosterLayer.removeAll(true);
     const yourTurn = draft.phase === 'pick' && draft.turn === you && draft.picksLeftThisTurn > 0;
 
-    const roster: readonly Archetype[] = [
-      'Tank',
-      'Burst',
-      'Healer',
-      'Controller',
-      'Buffer',
-      'Debuffer',
-      'Assassin',
-      'Bruiser',
-    ];
+    const roster: readonly Archetype[] = ROSTER.map((h) => h.archetype);
+    const columns = roster.length <= 12 ? 3 : roster.length <= 16 ? 4 : 5;
+    const cardW = columns === 3 ? 196 : columns === 4 ? 145 : 114;
+    const cardH = 100;
+    const gap = 10;
+    const gridW = columns * cardW + (columns - 1) * gap;
+    const startX = 324 + (632 - gridW) / 2 + cardW / 2;
+    const startY = 186;
 
     for (let index = 0; index < roster.length; index += 1) {
-      const archetype = roster[index];
+      const archetype = roster[index]!;
       const def = heroDef(archetype);
-      const col = index % 2;
-      const row = Math.floor(index / 2);
+      const col = index % columns;
+      const row = Math.floor(index / columns);
 
-      const cardX = 480 + col * 320;
-      const cardY = 194 + row * 138;
+      const cardX = startX + col * (cardW + gap);
+      const cardY = startY + row * (cardH + gap) + cardH / 2;
 
       const card = new DraftHeroCard(this, cardX, cardY, def, {
-        width: 304,
-        height: 130,
+        width: cardW,
+        height: cardH,
+        compact: cardW < 240,
         onClick: (picked) => this.openDetail(picked),
       });
 
@@ -396,7 +395,7 @@ export class DraftScene extends Phaser.Scene {
         ? 'Ban của bạn đã được ghi nhận. Lựa chọn của đối thủ chỉ lộ sau khi cả hai hoàn tất.'
         : 'Ban 1 tướng đối thủ để phá combo của họ. Đối thủ không thấy bạn ban ai cho tới khi hết giờ.';
     } else if (draft.turn === you) {
-      text = 'Chọn 2 tướng mỗi lượt. Tướng đã pick bị loại khỏi pool chung — hãy chú ý counter matrix.';
+      text = `Chọn ${draft.picksLeftThisTurn} tướng trong lượt này. Tướng đã pick bị loại khỏi pool chung — hãy chú ý counter matrix.`;
     } else {
       text = 'Đang chờ đối thủ. Quan sát tướng họ pick để chuẩn bị counter-pick ở lượt tiếp theo.';
     }

@@ -9,6 +9,7 @@ import { createBoard, createsMatch, resolveTurn } from './match3.js';
 import {
   applyGemEconomy,
   applySuddenDeath,
+  dealDamage,
   endTurn,
   expireTaunts,
   performBasicAttacks,
@@ -60,9 +61,10 @@ function makeSide(side: Side, archetypes: [Archetype, Archetype, Archetype]): Si
   return {
     side,
     heroes: createTeam(archetypes, side),
-    mana: 0,
+    mana: CONFIG.STARTING_MANA,
     targetUid: null,
     skillUsedThisTurn: false,
+    thrall: null,
   };
 }
 
@@ -123,6 +125,11 @@ export function playTurn(state: BattleState, action: TurnAction, rng: Rng): Turn
 
   if (state.winner !== null) return { ...base, reason: 'GAME_OVER' };
 
+  // ── Validate swap TRƯỚC khi tick đầu lượt ───────────────────────────
+  // Nếu swap sai, KHÔNG được tick Sudden Death / DoT / passive.
+  const illegal = isLegalSwap(state.board, action.swap);
+  if (illegal) return { ...base, reason: illegal };
+
   // ── Sudden Death: đầu mỗi lượt sau MAX_TURNS, cả 2 bên mất % maxHP ──
   if (state.turn >= CONFIG.MAX_TURNS) {
     state.suddenDeath = true;
@@ -136,12 +143,14 @@ export function playTurn(state: BattleState, action: TurnAction, rng: Rng): Turn
     }
   }
 
-  // ── Passive đầu lượt ────────────────────────────────────────────────
+  // ── Passive + DoT đầu lượt ──────────────────────────────────────────
   logs.push(...startTurn(active.heroes));
-
-  // ── Validate swap TRƯỚC khi tiêu mana / cooldown ────────────────────
-  const illegal = isLegalSwap(state.board, action.swap);
-  if (illegal) return { ...base, reason: illegal };
+  resolveWinner(state);
+  if (state.winner !== null) {
+    state.logs.push(...logs);
+    return { ...base, accepted: true, winner: state.winner, logs };
+  }
+  const aliveBefore = countAlive(state);
 
   // ── 1. Skill (tối đa 1/lượt) ────────────────────────────────────────
   let skillDamage = 0;
@@ -155,8 +164,12 @@ export function playTurn(state: BattleState, action: TurnAction, rng: Rng): Turn
         mana: active.mana,
         targetUid: action.skill.targetUid ?? action.targetUid ?? null,
         alreadyUsedThisTurn: active.skillUsedThisTurn,
+        enemyMana: inactive.mana,
+        enemyThrall: inactive.thrall,
       });
       active.mana = outcome.mana;
+      if (outcome.enemyMana !== undefined) inactive.mana = outcome.enemyMana;
+      if (outcome.summon !== undefined) active.thrall = outcome.summon;
       if (outcome.ok) {
         active.skillUsedThisTurn = true;
         skillDamage = outcome.damage;
@@ -166,6 +179,8 @@ export function playTurn(state: BattleState, action: TurnAction, rng: Rng): Turn
       }
 
       // Skill có thể kết thúc trận ngay (Execute lên tướng cuối).
+      logs.push(...grantNecroMana(state, aliveBefore));
+      syncThralls(state);
       resolveWinner(state);
       if (state.winner !== null) {
         endTurn(active.heroes);
@@ -217,6 +232,24 @@ export function playTurn(state: BattleState, action: TurnAction, rng: Rng): Turn
     logs.push(`Không còn mục tiêu — ${resolved.hits} hit chuyển thành mana`);
   }
 
+  // ── 4b. Thrall của Necromancer ──────────────────────────────────────
+  let thrallDamage = 0;
+  if (active.thrall?.alive) {
+    const owner = active.heroes.find((h) => h.uid === active.thrall!.ownerUid);
+    if (!owner?.alive) {
+      active.thrall = null;
+    } else {
+      const thrallTarget = resolveAttackTarget(inactive.heroes, action.targetUid ?? null);
+      if (thrallTarget) {
+        thrallDamage = dealDamage(thrallTarget, active.thrall.atk, { allies: inactive.heroes });
+        logs.push(`Thrall → ${thrallTarget.uid}: -${thrallDamage} HP${thrallTarget.alive ? '' : ' ☠'}`);
+      }
+    }
+  }
+
+  logs.push(...grantNecroMana(state, aliveBefore));
+  syncThralls(state);
+
   // ── 5. Kết thúc lượt ────────────────────────────────────────────────
   endTurn(active.heroes);
   expireTaunts(inactive.heroes);
@@ -258,7 +291,7 @@ export function playTurn(state: BattleState, action: TurnAction, rng: Rng): Turn
     turn: base.turn,
     side,
     hits: resolved.hits,
-    damage: attack.totalDealt + skillDamage,
+    damage: attack.totalDealt + skillDamage + thrallDamage,
     healed: economy.healed + attack.healed,
     mana: active.mana,
     board: state.board,
@@ -266,6 +299,42 @@ export function playTurn(state: BattleState, action: TurnAction, rng: Rng): Turn
     logs,
     animation,
   };
+}
+
+function countAlive(state: BattleState): Record<Side, number> {
+  return {
+    P1: state.sides.P1.heroes.filter((h) => h.alive).length,
+    P2: state.sides.P2.heroes.filter((h) => h.alive).length,
+  };
+}
+
+/** Necromancer passive: +20 mana mỗi ally chết, nếu Necromancer còn sống. */
+function grantNecroMana(state: BattleState, before: Record<Side, number>): string[] {
+  const logs: string[] = [];
+  for (const side of ['P1', 'P2'] as Side[]) {
+    const after = state.sides[side].heroes.filter((h) => h.alive).length;
+    const lost = before[side] - after;
+    if (lost <= 0) continue;
+    const hasNecro = state.sides[side].heroes.some(
+      (h) => h.alive && h.archetype === 'Necromancer',
+    );
+    if (!hasNecro) continue;
+    const sideState = state.sides[side];
+    const gain = Math.min(CONFIG.MANA_MAX - sideState.mana, lost * 20);
+    sideState.mana += gain;
+    logs.push(`${side} Bone Tithe: +${gain} mana (${lost} ally chết)`);
+  }
+  return logs;
+}
+
+/** Thrall chết theo owner. */
+function syncThralls(state: BattleState): void {
+  for (const side of ['P1', 'P2'] as Side[]) {
+    const sideState = state.sides[side];
+    if (!sideState.thrall) continue;
+    const owner = sideState.heroes.find((h) => h.uid === sideState.thrall!.ownerUid);
+    if (!owner?.alive) sideState.thrall = null;
+  }
 }
 
 function resolveWinner(state: BattleState): void {

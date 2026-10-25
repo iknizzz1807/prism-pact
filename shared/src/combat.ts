@@ -31,13 +31,27 @@ export function effectiveAtk(hero: HeroState, allies: readonly HeroState[]): num
 
   if (allies.some((a) => a.alive && a.archetype === 'Buffer')) value *= 1.1;
   if (hero.archetype === 'Burst' && allies.filter((a) => a.alive).length === 3) value *= 1.2;
+  if (hero.archetype === 'Berserker') {
+    const missing = 1 - hero.hp / Math.max(1, hero.maxHp);
+    value *= 1 + Math.min(0.3, missing * 0.5);
+  }
 
   return Math.max(0, value);
 }
 
-export function effectiveDef(hero: HeroState): number {
-  let value = hero.def * Math.max(0, 1 - buffPct(hero, 'DEF_DOWN'));
+export function effectiveDef(hero: HeroState, allies: readonly HeroState[] = [hero]): number {
+  let value =
+    hero.def *
+    (1 + buffPct(hero, 'DEF_UP')) *
+    Math.max(0, 1 - buffPct(hero, 'DEF_DOWN'));
   if (hero.archetype === 'Tank' && hero.hp < hero.maxHp * 0.5) value *= 1.3;
+  // Paladin aura: đồng minh dưới 40% HP nhận +15% DEF.
+  if (
+    hero.hp < hero.maxHp * 0.4 &&
+    allies.some((a) => a.alive && a.archetype === 'Paladin')
+  ) {
+    value *= 1.15;
+  }
   return Math.max(0, value);
 }
 
@@ -52,6 +66,10 @@ export function mitigated(raw: number, def: number): number {
 export interface DamageOptions {
   /** 0.5 = bỏ qua 50% DEF (Execute). */
   ignoreDefPct?: number;
+  /** true = bỏ qua toàn bộ shield (Deadshot). */
+  ignoreShield?: boolean;
+  /** Toàn đội của target — dùng cho aura Paladin. */
+  allies?: readonly HeroState[];
 }
 
 /**
@@ -59,16 +77,40 @@ export interface DamageOptions {
  */
 export function dealDamage(target: HeroState, raw: number, opts: DamageOptions = {}): number {
   if (!target.alive) return 0;
+  if (target.buffs.some((b) => b.kind === 'INVINCIBLE')) return 0;
 
-  const def = effectiveDef(target) * (1 - (opts.ignoreDefPct ?? 0));
+  const def = effectiveDef(target, opts.allies ?? [target]) * (1 - (opts.ignoreDefPct ?? 0));
   let amount = mitigated(raw, def);
 
-  if (target.shield > 0) {
+  // Oracle aura: ally dưới 30% HP nhận −15% damage.
+  const targetAllies = opts.allies ?? [target];
+  if (
+    target.hp < target.maxHp * 0.3 &&
+    targetAllies.some((a) => a.alive && a.archetype === 'Oracle')
+  ) {
+    amount = Math.max(CONFIG.MIN_DAMAGE, Math.round(amount * 0.85));
+  }
+
+  if (!opts.ignoreShield && target.shield > 0) {
     const absorbed = Math.min(target.shield, amount);
     target.shield -= absorbed;
     amount -= absorbed;
   }
 
+  const before = target.hp;
+  target.hp = Math.max(0, target.hp - amount);
+  if (target.hp === 0) {
+    target.alive = false;
+    target.shield = 0;
+  }
+  return before - target.hp;
+}
+
+/** True damage: bỏ qua DEF và shield. Invincible vẫn chặn. */
+export function dealTrueDamage(target: HeroState, raw: number): number {
+  if (!target.alive || raw <= 0) return 0;
+  if (target.buffs.some((b) => b.kind === 'INVINCIBLE')) return 0;
+  const amount = Math.round(raw);
   const before = target.hp;
   target.hp = Math.max(0, target.hp - amount);
   if (target.hp === 0) {
@@ -86,6 +128,9 @@ export function damageMultiplier(
 ): number {
   let mult = 1;
   if (attacker.archetype === 'Assassin' && target.hp / target.maxHp < 0.3) mult *= 1.3;
+  if (attacker.archetype === 'Executioner' && effectiveDef(target) >= 40) mult *= 1.25;
+  if (attacker.archetype === 'Sniper' && target.hp === target.maxHp) mult *= 1.15;
+  if (attacker.archetype === 'Pyromancer' && target.buffs.some((b) => b.kind === 'BURN')) mult *= 1.15;
   const hasDebuffer = attackerAllies.some((a) => a.alive && a.archetype === 'Debuffer');
   const targetDebuffed = target.buffs.some((b) => b.kind === 'ATK_DOWN' || b.kind === 'DEF_DOWN');
   if (hasDebuffer && targetDebuffed) mult *= 1.15;
@@ -221,10 +266,14 @@ export function performBasicAttacks(args: BasicAttackArgs): BasicAttackResult {
   for (let k = 0; k < scoredHits; k++) {
     if (!current) break;
     const attacker = living[k % living.length]!;
+    if (!attacker.alive) continue;
 
-    const raw = effectiveAtk(attacker, args.allies) * damageMultiplier(attacker, args.allies, current);
+    let raw = effectiveAtk(attacker, args.allies) * damageMultiplier(attacker, args.allies, current);
+    if (attacker.archetype === 'Cleaver' && args.enemies.filter((h) => h.alive).length === 3) {
+      raw *= 1.15;
+    }
     const shieldBefore = current.shield;
-    const dealt = dealDamage(current, raw);
+    const dealt = dealDamage(current, raw, { allies: args.enemies });
     const absorbed = Math.max(0, shieldBefore - current.shield);
 
     result.scoredHits++;
@@ -238,6 +287,16 @@ export function performBasicAttacks(args: BasicAttackArgs): BasicAttackResult {
       absorbed,
       killed: !current.alive,
     });
+
+    // Juggernaut passive: bị basic hit → +5% ATK (cap +20%).
+    if (current.archetype === 'Juggernaut' && current.alive && buffPct(current, 'ATK_UP') < 0.2) {
+      current.buffs.push({ kind: 'ATK_UP', pct: 0.05, turns: 2 });
+    }
+
+    // Iron Thorns: phản 40% damage basic đã gây ra, không kích hoạt lại thorns.
+    if (current.buffs.some((b) => b.kind === 'THORNS') && dealt > 0) {
+      dealDamage(attacker, Math.round(dealt * 0.4), { allies: args.allies });
+    }
 
     if (hasLeech && dealt > 0) {
       result.healed += healHero(attacker, Math.round(dealt * 0.15));
@@ -293,7 +352,82 @@ export function expireTaunts(team: HeroState[]): void {
 
 // ── Vòng đời lượt ──────────────────────────────────────────────────────
 
-/** Đầu lượt: passive hồi máu (Healer). */
+const DOT_KINDS: ReadonlySet<BuffKind> = new Set(['BURN', 'POISON']);
+const CLEANSE_PRIORITY: readonly BuffKind[] = [
+  'POISON',
+  'BURN',
+  'DOT_DOWN',
+  'DEF_DOWN',
+  'ATK_DOWN',
+  'SKILL_TAX',
+];
+
+export function isDebuffBuff(buff: Buff): boolean {
+  return CLEANSE_PRIORITY.includes(buff.kind);
+}
+
+/** Xoá 1 debuff theo thứ tự ưu tiên DoT trước. */
+export function cleanseOne(hero: HeroState): Buff | null {
+  for (const kind of CLEANSE_PRIORITY) {
+    const index = hero.buffs.findIndex((b) => b.kind === kind);
+    if (index >= 0) {
+      const [removed] = hero.buffs.splice(index, 1);
+      return removed ?? null;
+    }
+  }
+  return null;
+}
+
+/** Spellbreaker strip: bỏ 1 buff có lợi (Invincible/Thorns/ATK_UP/DEF_UP). */
+export function stripOneBuff(hero: HeroState): Buff | null {
+  const priority: readonly BuffKind[] = ['INVINCIBLE', 'THORNS', 'ATK_UP', 'DEF_UP'];
+  for (const kind of priority) {
+    const index = hero.buffs.findIndex((b) => b.kind === kind);
+    if (index >= 0) {
+      const [removed] = hero.buffs.splice(index, 1);
+      return removed ?? null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Tick Burn/Poison đầu turn của bên bị ảnh hưởng.
+ * - true damage: bỏ qua DEF + shield
+ * - Invincible KHÔNG chặn DoT
+ * - Poison +1% mỗi debuff khác trên target (cap 6%)
+ * - DOT_DOWN giảm damage
+ */
+export function tickDamageOverTime(team: readonly HeroState[]): { total: number; logs: string[] } {
+  let total = 0;
+  const logs: string[] = [];
+
+  for (const hero of team) {
+    if (!hero.alive) continue;
+    for (const buff of hero.buffs) {
+      if (!DOT_KINDS.has(buff.kind)) continue;
+      let pct = buff.pct;
+      if (buff.kind === 'POISON') {
+        const otherDebuffs = hero.buffs.filter((b) => b !== buff && isDebuffBuff(b)).length;
+        pct = Math.min(0.06, pct + otherDebuffs * 0.01);
+      }
+      pct *= Math.max(0, 1 - buffPct(hero, 'DOT_DOWN'));
+      const loss = Math.max(1, Math.round(hero.maxHp * pct));
+      const before = hero.hp;
+      hero.hp = Math.max(0, hero.hp - loss);
+      total += before - hero.hp;
+      logs.push(`${hero.uid} ${buff.kind} -${before - hero.hp} HP`);
+      if (hero.hp === 0) {
+        hero.alive = false;
+        hero.shield = 0;
+      }
+    }
+  }
+
+  return { total, logs };
+}
+
+/** Đầu lượt: passive hồi máu (Healer), sau đó tick Burn/Poison. */
 export function startTurn(team: readonly HeroState[]): string[] {
   const logs: string[] = [];
   for (const hero of team) {
@@ -301,6 +435,7 @@ export function startTurn(team: readonly HeroState[]): string[] {
     const healed = healHero(hero, ceilSafe(hero.maxHp * 0.05));
     if (healed > 0) logs.push(`${hero.uid} (Healer) hồi ${healed} HP`);
   }
+  logs.push(...tickDamageOverTime(team).logs);
   return logs;
 }
 

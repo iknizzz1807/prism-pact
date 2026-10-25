@@ -91,9 +91,34 @@ export type Archetype =
   | 'Buffer'
   | 'Debuffer'
   | 'Assassin'
-  | 'Bruiser';
+  | 'Bruiser'
+  // P1 roster (8 core + 4 mới)
+  | 'Paladin'
+  | 'Juggernaut'
+  | 'Executioner'
+  | 'Sniper'
+  // Reserve cho P2/P3 — chưa vào ROSTER
+  | 'Cleaver'
+  | 'Berserker'
+  | 'Pyromancer'
+  | 'Venomancer'
+  | 'Necromancer'
+  | 'Oracle'
+  | 'Chronarch'
+  | 'Spellbreaker';
 
-export type BuffKind = 'ATK_UP' | 'ATK_DOWN' | 'DEF_DOWN' | 'TAUNT';
+export type BuffKind =
+  | 'ATK_UP'
+  | 'ATK_DOWN'
+  | 'DEF_UP'
+  | 'DEF_DOWN'
+  | 'TAUNT'
+  | 'INVINCIBLE'
+  | 'THORNS'
+  | 'DOT_DOWN'
+  | 'BURN'
+  | 'POISON'
+  | 'SKILL_TAX';
 
 export interface Buff {
   kind: BuffKind;
@@ -116,6 +141,18 @@ export interface HeroState {
   /** Cooldown còn lại của skill. */
   cd: number;
   buffs: Buff[];
+  /** Các skill chỉ dùng 1 lần/trận (vd Divine Aegis của Paladin). */
+  onceUsed: string[];
+  /** Đã dùng skill đầu tiên chưa — dùng cho passive Chronarch. */
+  firstSkillUsed: boolean;
+}
+
+export interface ThrallState {
+  hp: number;
+  maxHp: number;
+  atk: number;
+  ownerUid: string;
+  alive: boolean;
 }
 
 export interface SkillDef {
@@ -124,6 +161,10 @@ export interface SkillDef {
   mana: number;
   cd: number;
   desc: string;
+  /** Mặc định 'enemy' nếu bỏ trống. */
+  target?: 'enemy' | 'ally' | 'self' | 'none';
+  /** true = chỉ dùng được 1 lần/trận. */
+  once?: boolean;
 }
 
 export interface PassiveDef {
@@ -151,4 +192,6 @@ export interface SideState {
   targetUid: string | null;
   /** Đã dùng skill trong lượt này chưa (tối đa 1). */
   skillUsedThisTurn: boolean;
+  /** Thrall của Necromancer (nếu có). */
+  thrall: ThrallState | null;
 }

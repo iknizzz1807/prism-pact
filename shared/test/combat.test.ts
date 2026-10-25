@@ -6,7 +6,9 @@ import {
   applyGemEconomy,
   applySuddenDeath,
   buffPct,
+  damageMultiplier,
   dealDamage,
+  dealTrueDamage,
   effectiveAtk,
   effectiveDef,
   endTurn,
@@ -17,6 +19,7 @@ import {
   performBasicAttacks,
   resolveAttackTarget,
   startTurn,
+  tickDamageOverTime,
 } from '../src/combat.js';
 import { createHero, createTeam, isTeamWiped } from '../src/heroes.js';
 import type { HeroState } from '../src/types.js';
@@ -63,6 +66,19 @@ describe('damage formula', () => {
     assert.equal(target.hp, 0);
     assert.equal(target.shield, 0);
   });
+
+  it('true damage bỏ qua DEF và shield, nhưng Invincible chặn', () => {
+    const target = createHero('Tank', 'P2', 0);
+    target.shield = 500;
+    const before = target.hp;
+    const dealt = dealTrueDamage(target, 100);
+    assert.equal(dealt, 100);
+    assert.equal(target.hp, before - 100);
+    assert.equal(target.shield, 500);
+
+    target.buffs.push({ kind: 'INVINCIBLE', pct: 0, turns: 1 });
+    assert.equal(dealTrueDamage(target, 100), 0);
+  });
 });
 
 describe('effective stats & passives', () => {
@@ -78,14 +94,14 @@ describe('effective stats & passives', () => {
   it('Burst +20% ATK khi đủ 3 người', () => {
     const allies = createTeam(['Tank', 'Burst', 'Healer'], 'P1');
     const burst = allies[1]!;
-    near(effectiveAtk(burst, allies), 144);
+    near(effectiveAtk(burst, allies), 172.8);
     allies[2]!.alive = false;
-    near(effectiveAtk(burst, allies), 120);
+    near(effectiveAtk(burst, allies), 144);
   });
 
   it('Buffer còn sống → cả đội +10% ATK', () => {
     const allies = createTeam(['Tank', 'Buffer', 'Healer'], 'P1');
-    near(effectiveAtk(allies[0]!, allies), 55);
+    near(effectiveAtk(allies[0]!, allies), 66);
   });
 
   it('ATK_UP cộng dồn', () => {
@@ -93,28 +109,35 @@ describe('effective stats & passives', () => {
     hero.buffs.push({ kind: 'ATK_UP', pct: 0.3, turns: 2 });
     hero.buffs.push({ kind: 'ATK_UP', pct: 0.2, turns: 2 });
     near(buffPct(hero, 'ATK_UP'), 0.5);
-    near(effectiveAtk(hero, [hero]), 75);
+    near(effectiveAtk(hero, [hero]), 90);
+  });
+
+  it('Paladin aura: đồng minh dưới 40% HP +15% DEF', () => {
+    const team = createTeam(['Paladin', 'Tank', 'Healer'], 'P2');
+    const tank = team[1]!;
+    tank.hp = tank.maxHp * 0.3;
+    near(effectiveDef(tank, team), 60 * 1.3 * 1.15);
   });
 });
 
 describe('gem economy', () => {
-  it('🩸 hồi 1% maxHP/tướng mỗi gem, 💧 nạp mana, 🛡️ tạo shield', () => {
+  it('🩸 hồi 0.6% maxHP/tướng mỗi gem, 💧 nạp 2 mana/gem, 🛡️ tạo shield', () => {
     const team = [createHero('Tank', 'P1', 0)];
     const tank = team[0]!;
     tank.hp = 1000;
 
     const out = applyGemEconomy(team, { ATK: 0, HP: 3, MANA: 4, SHIELD: 2 }, 10);
 
-    assert.equal(out.mana, 14);
-    assert.equal(tank.hp, 1000 + 54); // ceil(1800 * 0.01 * 3)
-    assert.equal(tank.shield, 36); // ceil(1800 * 0.01 * 2)
-    assert.equal(out.healed, 54);
-    assert.equal(out.shielded, 36);
+    assert.equal(out.mana, 18);
+    assert.equal(tank.hp, 1000 + 27); // ceil(1440 * 0.006) = 9, ×3
+    assert.equal(tank.shield, 18); // ceil(1440 * 0.006) = 9, ×2
+    assert.equal(out.healed, 27);
+    assert.equal(out.shielded, 18);
   });
 
   it('shield cap 60% maxHP', () => {
     const tank = createHero('Tank', 'P1', 0);
-    assert.equal(addShield(tank, 5000), 1080);
+    assert.equal(addShield(tank, 5000), 864);
     assert.equal(addShield(tank, 5000), 0);
   });
 
@@ -143,17 +166,17 @@ describe('basic attacks (round-robin + cap)', () => {
       out.hits.map((h) => h.attackerUid),
       ['P1:0', 'P1:1', 'P1:2', 'P1:0', 'P1:1'],
     );
-    // 45 + 131 + 36 + 45 + 131 = 388
-    assert.equal(out.totalDealt, 388);
+    // 55 + 157 + 44 + 55 + 157 = 468
+    assert.equal(out.totalDealt, 468);
   });
 
-  it('7 hit → chỉ 5 hit tính damage, 2 hit dư thành mana', () => {
+  it('7 hit → chỉ 6 hit tính damage, 1 hit dư thành mana', () => {
     const allies = createTeam(['Tank', 'Burst', 'Healer'], 'P1');
     const enemies = createTeam(['Tank', 'Burst', 'Healer'], 'P2');
     const out = performBasicAttacks({ attackers: allies, allies, target: enemies[0]!, enemies, hits: 7 });
-    assert.equal(out.scoredHits, 5);
-    assert.equal(out.overflowMana, 2);
-    assert.equal(out.hits.length, 5);
+    assert.equal(out.scoredHits, 6);
+    assert.equal(out.overflowMana, 1);
+    assert.equal(out.hits.length, 6);
   });
 
   it('target chết giữa lượt → dồn sang tướng còn sống kế tiếp', () => {
@@ -240,9 +263,9 @@ describe('turn lifecycle', () => {
   it('Healer tự hồi 5% maxHP đầu lượt', () => {
     const team = createTeam(['Tank', 'Burst', 'Healer'], 'P1');
     const healer = team[2]!;
-    healer.hp = 1000;
+    healer.hp = 500;
     const logs = startTurn(team);
-    assert.equal(healer.hp, 1055); // ceil(1100 * 0.05)
+    assert.equal(healer.hp, 544); // ceil(880 * 0.05) = 44
     assert.equal(logs.length, 1);
   });
 
@@ -266,23 +289,77 @@ describe('turn lifecycle', () => {
     const team = createTeam(['Tank', 'Burst', 'Healer'], 'P1');
     team[0]!.shield = 500;
     const lost = applySuddenDeath(team);
-    assert.equal(lost, 90 + 45 + 55);
-    assert.equal(team[0]!.hp, 1710);
+    assert.equal(lost, 72 + 36 + 44);
+    assert.equal(team[0]!.hp, 1368);
     assert.equal(team[0]!.shield, 500);
+  });
+
+  it('Burn/Poison tick true damage, shield không hấp thụ, Invincible vẫn tick', () => {
+    const hero = createHero('Tank', 'P1', 0);
+    hero.shield = 500;
+    hero.buffs.push({ kind: 'INVINCIBLE', pct: 0, turns: 1 });
+    hero.buffs.push({ kind: 'BURN', pct: 0.04, turns: 2 });
+    const before = hero.hp;
+
+    const out = tickDamageOverTime([hero]);
+
+    assert.equal(out.total, Math.round(hero.maxHp * 0.04));
+    assert.equal(hero.hp, before - Math.round(hero.maxHp * 0.04));
+    assert.equal(hero.shield, 500);
+    assert.ok(out.logs.some((l) => l.includes('BURN')));
+  });
+
+  it('DOT_DOWN giảm 25% damage Burn', () => {
+    const hero = createHero('Tank', 'P1', 0);
+    hero.buffs.push({ kind: 'BURN', pct: 0.04, turns: 2 });
+    hero.buffs.push({ kind: 'DOT_DOWN', pct: 0.25, turns: 2 });
+    const before = hero.hp;
+
+    tickDamageOverTime([hero]);
+
+    assert.equal(hero.hp, before - Math.round(hero.maxHp * 0.04 * 0.75));
+  });
+
+  it('Poison +1% mỗi debuff khác', () => {
+    const hero = createHero('Tank', 'P1', 0);
+    hero.buffs.push({ kind: 'POISON', pct: 0.03, turns: 2 });
+    hero.buffs.push({ kind: 'ATK_DOWN', pct: 0.5, turns: 2 });
+    const before = hero.hp;
+
+    tickDamageOverTime([hero]);
+
+    assert.equal(hero.hp, before - Math.round(hero.maxHp * 0.04));
+  });
+
+  it('Oracle aura: ally dưới 30% HP nhận −15% damage', () => {
+    const team = createTeam(['Oracle', 'Tank', 'Healer'], 'P2');
+    const target = team[1]!;
+    target.hp = 100;
+    const withOracle = dealDamage(target, 200, { allies: team });
+    target.hp = 100;
+    const withoutOracle = dealDamage(target, 200, { allies: [target] });
+    assert.ok(withOracle < withoutOracle);
+  });
+
+  it('Pyromancer passive +15% damage lên target đang Burn', () => {
+    const pyro = createHero('Pyromancer', 'P1', 0);
+    const target = createHero('Tank', 'P2', 0);
+    target.buffs.push({ kind: 'BURN', pct: 0.04, turns: 2 });
+    assert.equal(damageMultiplier(pyro, [pyro], target), 1.15);
   });
 
   it('healTeam không hồi quá maxHP và bỏ qua tướng chết', () => {
     const team = createTeam(['Tank', 'Burst', 'Healer'], 'P1');
-    team[0]!.hp = 1700; // thiếu 100
+    team[0]!.hp = 1340; // thiếu 100
     team[1]!.alive = false;
     team[1]!.hp = 0;
-    team[2]!.hp = 1000; // thiếu 100
+    team[2]!.hp = 780; // thiếu 100
 
     const healed = healTeam(team, 0.5); // 50% maxHP, cap ở maxHP
 
     assert.equal(healed, 100 + 100);
-    assert.equal(team[0]!.hp, 1800);
-    assert.equal(team[2]!.hp, 1100);
+    assert.equal(team[0]!.hp, 1440);
+    assert.equal(team[2]!.hp, 880);
     assert.equal(team[1]!.hp, 0);
   });
 

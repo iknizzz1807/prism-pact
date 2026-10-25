@@ -190,7 +190,7 @@ describe('MatchRoom — PvP', () => {
     assert.equal(loserEnd.rank.points, 0, 'rank không được âm');
   });
 
-  it('draft: đúng thứ tự 2-2, pool cạn dần, ban ẩn tới khi cả 2 xong', () => {
+  it('draft: snake-8, pool giảm dần, ban ẩn tới khi cả 2 xong', () => {
     const clock: Clock = { t: 0 };
     const p1 = fakePlayer('P1');
     const p2 = fakePlayer('P2');
@@ -198,35 +198,29 @@ describe('MatchRoom — PvP', () => {
 
     room.start();
 
-    // First pick là random (coin-flip) → test theo turn thực tế
+    // First pick random (coin-flip) → test theo turn thực tế.
     const first = lastView(p1)!.draft!.turn;
     const second: Side = first === 'P1' ? 'P2' : 'P1';
+    const order: Side[] = [first, second, second, first, first, second, second, first];
 
-    room.handle(first, { t: 'pick', hero: 'Tank' });
-    assert.equal(lastView(p1)!.draft!.turn, first);
-    room.handle(first, { t: 'pick', hero: 'Burst' });
-    assert.equal(lastView(p1)!.draft!.turn, second);
+    assert.equal(lastView(p1)!.draft!.pool.length, 20);
 
-    // Không thể pick khi không phải lượt
-    room.handle(first, { t: 'pick', hero: 'Healer' });
-    const errors = (first === 'P1' ? p1 : p2).inbox.filter((m) => m.t === 'error');
+    // Không thể pick khi không phải lượt.
+    room.handle(second, { t: 'pick', hero: lastView(p1)!.draft!.pool[0]! });
+    const errors = (second === 'P1' ? p1 : p2).inbox.filter((m) => m.t === 'error');
     assert.equal(errors.length, 1);
     assert.equal((errors[0] as Extract<ServerMessage, { t: 'error' }>).code, 'NOT_YOUR_TURN');
 
-    room.handle(second, { t: 'pick', hero: 'Healer' });
-    room.handle(second, { t: 'pick', hero: 'Controller' });
-
-    const mid = lastView(p1)!;
-    assert.equal(mid.draft!.round, 2, 'sau 4 pick (2 mỗi bên) là vòng 2');
-    assert.equal(mid.draft!.picks[first].length, 2);
-    assert.equal(mid.draft!.picks[second].length, 2);
-
-    for (const side of [first, first, second, second] as Side[]) {
+    for (const side of order) {
+      assert.equal(lastView(p1)!.draft!.turn, side);
       room.handle(side, { t: 'pick', hero: lastView(p1)!.draft!.pool[0]! });
     }
 
     const banView = lastView(p1)!;
     assert.equal(banView.phase, 'ban');
+    assert.equal(banView.draft!.picks[first].length, 4);
+    assert.equal(banView.draft!.picks[second].length, 4);
+    assert.equal(banView.draft!.pool.length, 12);
     assert.deepEqual(banView.draft!.bans, { P1: [], P2: [] }, 'ban phải ẩn');
 
     room.handle(first, { t: 'ban', hero: banView.draft!.picks[second][0]! });

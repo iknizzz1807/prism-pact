@@ -30,7 +30,7 @@ function playDraft(firstPick: Side = 'P1', banFirst: Side = 'P1'): ReturnType<ty
 }
 
 describe('draft order', () => {
-  it('P1 2 → P2 2 → P1 2 → P2 2, mỗi bên 4 tướng', () => {
+  it('snake-8: P1 → P2 → P2 → P1 → P1 → P2 → P2 → P1', () => {
     const draft = createDraft('P1');
     const order: Side[] = [];
 
@@ -39,10 +39,10 @@ describe('draft order', () => {
       applyPick(draft, draft.turn, draft.pool[0]!);
     }
 
-    assert.deepEqual(order, ['P1', 'P1', 'P2', 'P2', 'P1', 'P1', 'P2', 'P2']);
+    assert.deepEqual(order, ['P1', 'P2', 'P2', 'P1', 'P1', 'P2', 'P2', 'P1']);
     assert.equal(draft.picks.P1.length, 4);
     assert.equal(draft.picks.P2.length, 4);
-    assert.equal(draft.pool.length, 0);
+    assert.equal(draft.pool.length, 12); // 20 hero P3 - 8 pick
     assert.equal(draft.phase, 'ban');
     assert.equal(totalPicks(draft), 8);
   });
@@ -51,6 +51,7 @@ describe('draft order', () => {
     const draft = createDraft('P2');
     assert.equal(draft.turn, 'P2');
     assert.equal(draft.round, 1);
+    assert.equal(draft.picksLeftThisTurn, 1);
   });
 
   it('round tăng đúng sau mỗi 4 pick', () => {

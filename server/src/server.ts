@@ -5,7 +5,15 @@
 import { randomUUID } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import WebSocket, { WebSocketServer } from 'ws';
-import type { ClientMessage, ErrorCode, ServerMessage, Side, Timings } from '@prism-pact/shared';
+import { mulberry32 } from '@prism-pact/shared';
+import type {
+  ClientMessage,
+  ErrorCode,
+  ServerMessage,
+  Side,
+  Timings,
+} from '@prism-pact/shared';
+import { createBotPolicyFactory, type BotPolicyFactory } from './bots/index.js';
 import { MatchRoom, type Player } from './rooms/MatchRoom.js';
 import { RankingStore } from './ranking.js';
 import { createChainClient, type ChainClient } from './chain.js';
@@ -20,6 +28,8 @@ export interface StartOptions {
   season?: SeasonReader;
   /** undefined = tự đọc env; null = tắt chain. */
   chain?: ChainClient | null;
+  /** undefined = tự đọc env; null = tắt policy (bot heuristic đồng bộ). */
+  botPolicyFactory?: BotPolicyFactory | null;
 }
 
 export interface GameServer {
@@ -66,6 +76,10 @@ export async function startGameServer(options: StartOptions = {}): Promise<GameS
   const season = options.season ?? new SeasonReader();
   const timings = options.timings;
   const tickMs = options.tickMs ?? 100;
+  const botPolicyFactory =
+    options.botPolicyFactory === undefined
+      ? createBotPolicyFactory()
+      : options.botPolicyFactory;
 
   const rooms = new Set<MatchRoom>();
   const intervals = new Map<MatchRoom, NodeJS.Timeout>();
@@ -145,12 +159,18 @@ export async function startGameServer(options: StartOptions = {}): Promise<GameS
           send: () => undefined,
         };
 
+    // Mỗi phòng một RNG riêng; policy fallback dùng cùng RNG với battle.
+    const roomRng = mulberry32((Math.random() * 0xffffffff) >>> 0);
+    const botPolicy = b ? null : (botPolicyFactory?.(roomRng) ?? null);
+
     let room: MatchRoom;
     room = new MatchRoom(matchId, [p1, p2], {
       mode: b ? 'pvp' : 'bot',
       ranking,
       chain,
       timings,
+      rng: roomRng,
+      botPolicy,
       onFinished: (finishedRoom) => {
         const timer = intervals.get(finishedRoom);
         if (timer) clearInterval(timer);

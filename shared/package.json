@@ -13,7 +13,7 @@
     }
   },
   "scripts": {
-    "test": "node --import tsx --test test/match3.test.ts test/combat.test.ts test/skills.test.ts test/battle.test.ts test/draft.test.ts",
+    "test": "node --import tsx --test test/match3.test.ts test/combat.test.ts test/skills.test.ts test/battle.test.ts test/draft.test.ts test/bot.test.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
     "demo": "node --import tsx scripts/demo.ts"

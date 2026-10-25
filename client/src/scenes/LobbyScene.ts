@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { ROSTER } from '@prism-pact/shared';
 import type { ConnectionStatus } from '../net/gameClient';
 import { gameClient } from '../net/gameClient';
 import { matchStore } from '../state';
@@ -245,8 +246,8 @@ export class LobbyScene extends Phaser.Scene {
   }
 
   private drawArchetypeHandbook(): void {
-    sectionTitle(this, 898, 110, 'CẨM NANG 8 TƯỚNG (ROSTER)');
-    label(this, 1234, 110, 'POOL 8', 11, COLORS.muted, 'bold').setOrigin(1, 0);
+    sectionTitle(this, 898, 110, `CẨM NANG ${ROSTER.length} TƯỚNG (ROSTER)`);
+    label(this, 1234, 110, `POOL ${ROSTER.length}`, 11, COLORS.muted, 'bold').setOrigin(1, 0);
 
     const roster = [
       { name: 'Tank', emoji: '🛡️', role: 'Taunt hút đòn, +30% DEF khi thấp máu' },
@@ -260,11 +261,39 @@ export class LobbyScene extends Phaser.Scene {
     ];
 
     roster.forEach((h, idx) => {
-      const hy = 138 + idx * 36;
-      label(this, 898, hy, `${h.emoji} ${h.name}`, 13, COLORS.text, 'bold');
-      const rText = label(this, 1018, hy, h.role, 12, COLORS.muted);
+      const hy = 138 + idx * 32;
+      label(this, 898, hy, `${h.emoji} ${h.name}`, 12, COLORS.text, 'bold');
+      const rText = label(this, 1018, hy, h.role, 11, COLORS.muted);
       rText.setWordWrapWidth(216);
     });
+
+    label(
+      this,
+      898,
+      390,
+      '+4 P1: 🕊️ Paladin · 🦏 Juggernaut · ⚔️ Executioner · 🎯 Sniper',
+      9,
+      COLORS.dim,
+      'bold',
+    );
+    label(
+      this,
+      898,
+      406,
+      '+4 P2: 🪚 Cleaver · 🔥 Pyromancer · 🐍 Venomancer · 🔮 Oracle',
+      9,
+      COLORS.dim,
+      'bold',
+    );
+    label(
+      this,
+      898,
+      422,
+      '+4 P3: 💀 Necromancer · ⏳ Chronarch · 🪄 Spellbreaker · 💢 Berserker',
+      9,
+      COLORS.dim,
+      'bold',
+    );
 
     divider(this, 898, 436, 1234);
   }

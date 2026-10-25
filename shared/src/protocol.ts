@@ -18,6 +18,18 @@ export interface HeroView {
   cd: number;
   skill: SkillDef;
   buffs: Buff[];
+  /** Skill id đã dùng 1 lần/trận (vd Divine Aegis). */
+  onceUsed: string[];
+  /** Đã dùng skill đầu tiên — cho passive Chronarch. */
+  firstSkillUsed: boolean;
+}
+
+export interface ThrallView {
+  hp: number;
+  maxHp: number;
+  atk: number;
+  ownerUid: string;
+  alive: boolean;
 }
 
 export interface SideView {
@@ -25,6 +37,9 @@ export interface SideView {
   mana: number;
   heroes: HeroView[];
   targetUid: string | null;
+  thrall: ThrallView | null;
+  /** +5 mana cost nếu địch có Spellbreaker sống. */
+  skillTax: number;
 }
 
 export interface DraftView {

@@ -7,7 +7,8 @@ export const CONFIG = {
   // ── Board ────────────────────────────────────────────────────────────
   BOARD_SIZE: 8,
   GEM_TYPES: ['ATK', 'HP', 'MANA', 'SHIELD'] as const,
-  GEM_SPAWN_WEIGHT: { ATK: 0.25, HP: 0.25, MANA: 0.25, SHIELD: 0.25 } as const,
+  // Balance patch 2026-10-25: ATK gem xuất hiện nhiều hơn để trận kết thúc tự nhiên.
+  GEM_SPAWN_WEIGHT: { ATK: 0.3, HP: 7 / 30, MANA: 7 / 30, SHIELD: 7 / 30 } as const,
 
   // ── Timing (ms) — server dùng, client chỉ đọc để render timer ────────
   TURN_TIME_MS: 20_000,
@@ -18,7 +19,7 @@ export const CONFIG = {
   // ── Match rules ─────────────────────────────────────────────────────
   MAX_TURNS: 50, // tổng số lượt (25 mỗi bên) → kích hoạt Sudden Death
   SUDDEN_DEATH_HP_PCT: 0.05, // 5% maxHP mỗi lượt mỗi bên
-  DAMAGE_CAP_HITS: 5, // tối đa 5 hit ⚔️ được tính damage/lượt
+  DAMAGE_CAP_HITS: 6, // tối đa 6 hit ⚔️ được tính damage/lượt
   MAX_CASCADES: 20, // chặn vòng lặp cascade vô hạn (an toàn)
 
   // Ngọc đặc biệt
@@ -27,10 +28,11 @@ export const CONFIG = {
   ENABLE_RAINBOW: false, // T1 tắt (README 3.3), bật ở T2
 
   // ── Gem values ──────────────────────────────────────────────────────
-  MANA_PER_GEM: 1,
+  MANA_PER_GEM: 2,
   MANA_MAX: 100,
-  HEAL_PCT_PER_GEM: 0.01, // +1% maxHP/tướng mỗi gem 🩸
-  SHIELD_PCT_PER_GEM: 0.01, // +1% maxHP/tướng mỗi gem 🛡️
+  STARTING_MANA: 25, // mana đầu trận cho mỗi bên
+  HEAL_PCT_PER_GEM: 0.006, // +0.6% maxHP/tướng mỗi gem 🩸
+  SHIELD_PCT_PER_GEM: 0.006, // +0.6% maxHP/tướng mỗi gem 🛡️
   SHIELD_CAP_PCT: 0.6, // 60% maxHP/tướng
 
   // ── Damage ──────────────────────────────────────────────────────────
@@ -38,7 +40,7 @@ export const CONFIG = {
   MIN_DAMAGE: 1,
 
   // ── Draft ───────────────────────────────────────────────────────────
-  ROSTER_SIZE: 8,
+  ROSTER_SIZE: 20, // P3: full roster 20.
   PICKS_PER_SIDE: 4,
   PICKS_PER_ROUND: 2,
   BANS_PER_SIDE: 1,

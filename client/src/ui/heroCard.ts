@@ -13,6 +13,18 @@ export const ARCHETYPE_COLOR: Record<Archetype, number> = {
   Debuffer: 0xa78bfa,
   Assassin: 0xf472b6,
   Bruiser: 0xfb923c,
+  Paladin: 0xfcd34d,
+  Juggernaut: 0xf97316,
+  Executioner: 0xef4444,
+  Sniper: 0x22d3ee,
+  Cleaver: 0xf59e0b,
+  Berserker: 0xf43f5e,
+  Pyromancer: 0xff6b4a,
+  Venomancer: 0x84cc16,
+  Necromancer: 0x8b5cf6,
+  Oracle: 0x2dd4bf,
+  Chronarch: 0x818cf8,
+  Spellbreaker: 0xc084fc,
 };
 
 export const ARCHETYPE_EMOJI: Record<Archetype, string> = {
@@ -24,6 +36,18 @@ export const ARCHETYPE_EMOJI: Record<Archetype, string> = {
   Debuffer: '🧪',
   Assassin: '🗡️',
   Bruiser: '🪓',
+  Paladin: '🕊️',
+  Juggernaut: '🦏',
+  Executioner: '⚔️',
+  Sniper: '🎯',
+  Cleaver: '🪚',
+  Berserker: '💢',
+  Pyromancer: '🔥',
+  Venomancer: '🐍',
+  Necromancer: '💀',
+  Oracle: '🔮',
+  Chronarch: '⏳',
+  Spellbreaker: '🪄',
 };
 
 export type DraftCardState = 'available' | 'mine' | 'enemy' | 'banned';
@@ -32,6 +56,8 @@ export interface DraftCardOptions {
   width: number;
   height: number;
   onClick?: (archetype: Archetype) => void;
+  /** Card nhỏ trong grid nhiều cột: ẩn mô tả dài, chỉ hiện tên + stat + tên skill. */
+  compact?: boolean;
 }
 
 /** Card tướng trong draft trên PC: tên, emoji, chỉ số, chiêu thức & nội tại sắc nét. */
@@ -42,6 +68,7 @@ export class DraftHeroCard extends Phaser.GameObjects.Container {
   private readonly boxH: number;
   private readonly noteText: Phaser.GameObjects.Text;
   private readonly nameText: Phaser.GameObjects.Text;
+  private readonly isTiny: boolean;
   private cardState: DraftCardState = 'available';
   private highlighted = false;
   private hovered = false;
@@ -51,32 +78,52 @@ export class DraftHeroCard extends Phaser.GameObjects.Container {
     const accent = ARCHETYPE_COLOR[def.archetype];
     const left = -options.width / 2;
     const top = -options.height / 2;
+    const compact = options.compact ?? options.width < 240;
+    const tiny = options.width < 160;
 
     const emoji = ARCHETYPE_EMOJI[def.archetype];
-    const nameText = label(scene, left + 12, top + 9, `${emoji} ${def.archetype}`, 15, COLORS.text, 'bold');
-    const noteText = label(scene, left + options.width - 12, top + 10, '', 11, COLORS.muted, 'bold').setOrigin(1, 0);
+    const nameText = label(
+      scene,
+      left + (tiny ? 7 : 10),
+      top + 7,
+      `${emoji} ${def.archetype}`,
+      tiny ? 11 : compact ? 13 : 15,
+      COLORS.text,
+      'bold',
+    );
+    const noteText = label(
+      scene,
+      left + options.width - (tiny ? 6 : 8),
+      top + 8,
+      '',
+      tiny ? 8 : compact ? 9 : 11,
+      COLORS.muted,
+      'bold',
+    ).setOrigin(1, 0);
 
     const statText = label(
       scene,
-      left + 12,
-      top + 29,
-      `HP ${def.hp}  ·  ATK ${def.atk}  ·  DEF ${def.def}`,
-      11,
+      left + (tiny ? 7 : 10),
+      top + (tiny ? 26 : 28),
+      compact ? `HP ${def.hp} · ATK ${def.atk}` : `HP ${def.hp}  ·  ATK ${def.atk}  ·  DEF ${def.def}`,
+      tiny ? 9 : compact ? 10 : 11,
       COLORS.muted,
       'bold',
     );
     const skillText = label(
       scene,
-      left + 12,
-      top + 47,
-      `Chiêu: ${def.skill.name} (${def.skill.mana} mana · CD ${def.skill.cd})`,
-      12,
+      left + (tiny ? 7 : 10),
+      top + (tiny ? 42 : 46),
+      compact
+        ? `⚡ ${def.skill.name}`
+        : `Chiêu: ${def.skill.name} (${def.skill.mana} mana · CD ${def.skill.cd})`,
+      tiny ? 9 : compact ? 10 : 12,
       accent,
       'bold',
     );
 
     const extras: Phaser.GameObjects.GameObject[] = [];
-    if (options.height >= 110) {
+    if (!compact && options.height >= 110) {
       const descText = scene.add
         .text(left + 12, top + 65, def.skill.desc, {
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
@@ -109,6 +156,7 @@ export class DraftHeroCard extends Phaser.GameObjects.Container {
     this.boxH = options.height;
     this.noteText = noteText;
     this.nameText = nameText;
+    this.isTiny = tiny;
 
     if (options.onClick) {
       const onClick = options.onClick;
@@ -138,7 +186,7 @@ export class DraftHeroCard extends Phaser.GameObjects.Container {
 
   setCardState(state: DraftCardState, note = ''): this {
     this.cardState = state;
-    this.noteText.setText(note);
+    this.noteText.setText(this.isTiny ? '' : note);
     this.draw();
     return this;
   }
@@ -430,8 +478,15 @@ export class MiniHeroSlot extends Phaser.GameObjects.Container {
 const BUFF_LABEL: Record<Buff['kind'], string> = {
   ATK_UP: '↑ATK',
   ATK_DOWN: '↓ATK',
+  DEF_UP: '↑DEF',
   DEF_DOWN: '↓DEF',
   TAUNT: 'TAUNT',
+  INVINCIBLE: 'INVINCIBLE',
+  THORNS: 'THORNS',
+  DOT_DOWN: '↓DOT',
+  BURN: 'BURN',
+  POISON: 'POISON',
+  SKILL_TAX: 'TAX',
 };
 
 export interface BattleCardOptions {

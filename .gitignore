@@ -11,3 +11,13 @@ cache/
 typechain-types/
 contracts/deployments/hardhat.json
 contracts/deployments/localhost.json
+
+# Local model/probe artifacts (not part of the game)
+__pycache__/
+jev-run-logs/
+kev-run-logs/
+jev-results.json
+kev-results.json
+kev-states.json
+jev_*.py
+kev_*.py

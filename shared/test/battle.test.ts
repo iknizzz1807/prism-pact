@@ -19,11 +19,11 @@ function newBattle(seed = 2026): BattleState {
 }
 
 describe('battle setup', () => {
-  it('tạo 2 đội 3 tướng, mana 0, P1 đi trước', () => {
+  it('tạo 2 đội 3 tướng, mana đầu trận = STARTING_MANA, P1 đi trước', () => {
     const state = newBattle();
     assert.equal(state.sides.P1.heroes.length, 3);
     assert.equal(state.sides.P2.heroes.length, 3);
-    assert.equal(state.sides.P1.mana, 0);
+    assert.equal(state.sides.P1.mana, CONFIG.STARTING_MANA);
     assert.equal(state.active, 'P1');
     assert.equal(state.turn, 0);
     assert.equal(state.winner, null);
@@ -136,6 +136,31 @@ describe('sudden death', () => {
     const lost = p1Before.reduce((sum, hp, i) => sum + (hp - p1After[i]!), 0);
     assert.ok(lost > 0, 'phải mất HP vì sudden death');
     assert.ok(report.logs.some((l) => l.includes('SUDDEN DEATH')));
+  });
+});
+
+describe('summon', () => {
+  it('Thrall đánh target đã commit sau lượt', () => {
+    const state = newBattle(7);
+    const owner = state.sides.P1.heroes[0]!;
+    state.sides.P1.thrall = {
+      hp: 280,
+      maxHp: 280,
+      atk: 54,
+      ownerUid: owner.uid,
+      alive: true,
+    };
+    const rng = mulberry32(11);
+    const action = chooseAction(state, rng)!;
+
+    const report = playTurn(
+      state,
+      { swap: action.swap, targetUid: 'P2:0' },
+      mulberry32(11),
+    );
+
+    assert.equal(report.accepted, true);
+    assert.ok(report.logs.some((line) => line.includes('Thrall')));
   });
 });
 

@@ -11,6 +11,7 @@ import {
   autoBan,
   autoPick,
   chooseAction,
+  chooseSwapWithWeights,
   createBattle,
   createDraft,
   finalTeams,
@@ -31,8 +32,10 @@ import type {
   ServerMessage,
   Side,
   Timings,
+  TurnAction,
   TurnAnimation,
 } from '@prism-pact/shared';
+import type { BotPolicy, TurnPlan } from '../bots/types.js';
 import type { ChainClient } from '../chain.js';
 import { buildDraftHash } from '../chain.js';
 import type { RankingStore } from '../ranking.js';
@@ -54,6 +57,8 @@ export interface MatchRoomOptions {
   animationBudget?: (waves: number) => number;
   ranking?: RankingStore;
   chain?: ChainClient | null;
+  /** Policy cấp cao cho bot (Jev + fallback). undefined/null = bot heuristic cũ. */
+  botPolicy?: BotPolicy | null;
   onFinished?: (room: MatchRoom) => void;
 }
 
@@ -77,6 +82,7 @@ export class MatchRoom {
   private readonly rng: Rng;
   private readonly ranking?: RankingStore;
   private readonly chain: ChainClient | null;
+  private readonly botPolicy: BotPolicy | null;
   private readonly onFinished?: (room: MatchRoom) => void;
   private readonly botSide: Side | null;
   private readonly matchSalt: string;
@@ -92,6 +98,8 @@ export class MatchRoom {
   private ranks: Partial<Record<Side, RankView>> = {};
   private disconnected: { side: Side; at: number } | null = null;
   private finished = false;
+  /** Đang chờ policy async (Jev) trả về — tránh gọi trùng mỗi tick. */
+  private botThinking = false;
 
   constructor(
     readonly id: string,
@@ -103,6 +111,7 @@ export class MatchRoom {
     this.timings = { ...DEFAULT_TIMINGS, ...(options.timings ?? {}) };
     this.ranking = options.ranking;
     this.chain = options.chain ?? null;
+    this.botPolicy = options.botPolicy ?? null;
     this.onFinished = options.onFinished;
     this.botSide = players.find((p) => p.isBot)?.side ?? null;
     this.matchSalt = Math.random().toString(16).slice(2).padEnd(16, '0');
@@ -119,7 +128,7 @@ export class MatchRoom {
     this.phase = 'draft';
     this.deadline = this.now() + this.timings.pickMs;
     this.scheduleBot();
-    this.broadcast(['Trận đấu bắt đầu — draft live 2-2']);
+    this.broadcast(['Trận đấu bắt đầu — draft live snake-8']);
   }
 
   dispose(): void {
@@ -170,8 +179,15 @@ export class MatchRoom {
         return;
       }
       if (this.botSide && this.battle.active === this.botSide && now >= this.botActAt) {
-        this.botBattleAction();
-        return;
+        if (!this.botPolicy) {
+          this.botBattleAction();
+          return;
+        }
+        if (!this.botThinking) {
+          void this.botBattleTurnWithPolicy();
+          return;
+        }
+        // Đang chờ Jev: vẫn để timeout xử lý nếu policy treo quá lâu.
       }
       if (this.deadline !== null && now >= this.deadline) this.timeoutBattle();
     }
@@ -371,6 +387,72 @@ export class MatchRoom {
     this.broadcast([`Bot: ${report.logs.join(' · ')}`], report.animation ?? undefined);
   }
 
+  /**
+   * Bot dùng policy async (Jev). Chụp turn/active trước khi await; nếu timeout
+   * hoặc trận kết thúc trong lúc chờ thì bỏ kết quả để không đánh 2 lần.
+   */
+  private async botBattleTurnWithPolicy(): Promise<void> {
+    if (!this.battle || !this.botPolicy || !this.botSide) return;
+    if (this.botThinking) return;
+
+    const battle = this.battle;
+    const side = this.botSide;
+    const turn = battle.turn;
+    if (battle.active !== side || battle.winner !== null) return;
+
+    this.botThinking = true;
+    try {
+      const plan = await this.botPolicy.planTurn(battle, side);
+      if (this.finished || this.battle !== battle) return;
+      if (this.battle.active !== side || this.battle.turn !== turn) return;
+      if (this.battle.winner !== null) return;
+      this.applyBotPlan(plan);
+    } catch (error) {
+      if (this.finished || this.battle !== battle) return;
+      if (this.battle.active !== side || this.battle.turn !== turn) return;
+      // PolicyRunner đã tự fallback; đây chỉ là lưới an toàn cuối.
+      console.warn(`[bot] policy error — dùng heuristic: ${(error as Error).message}`);
+      this.botBattleAction();
+    } finally {
+      this.botThinking = false;
+    }
+  }
+
+  private applyBotPlan(plan: TurnPlan | null): void {
+    if (!this.battle) return;
+    if (!plan) {
+      this.botBattleAction();
+      return;
+    }
+
+    const swap = chooseSwapWithWeights(this.battle.board, this.rng, plan.weights);
+    if (!swap) {
+      this.timeoutBattle();
+      return;
+    }
+
+    const action: TurnAction = {
+      swap,
+      targetUid: plan.targetUid ?? null,
+      ...(plan.skill ? { skill: plan.skill } : {}),
+    };
+    const report = playTurn(this.battle, action, this.rng);
+    if (!report.accepted) {
+      this.timeoutBattle();
+      return;
+    }
+
+    const budget = this.animationBudget(report.animation?.waves.length ?? 0);
+    this.deadline = this.now() + this.timings.turnMs + budget;
+    this.scheduleBot(budget);
+
+    if (this.battle.winner !== null) {
+      this.finish(this.battle.winner, report.logs.join(' · '));
+      return;
+    }
+    this.broadcast([`Bot: ${report.logs.join(' · ')}`], report.animation ?? undefined);
+  }
+
   private timeoutBattle(): void {
     if (!this.battle) return;
     const side = this.battle.active;
@@ -485,10 +567,14 @@ export class MatchRoom {
 
   private sideView(battle: BattleState, side: Side) {
     const state = battle.sides[side];
+    const enemy = battle.sides[otherSide(side)];
+    const skillTax = enemy.heroes.some((h) => h.alive && h.archetype === 'Spellbreaker') ? 5 : 0;
     return {
       side,
       mana: state.mana,
       targetUid: state.targetUid,
+      thrall: state.thrall ? { ...state.thrall } : null,
+      skillTax,
       heroes: state.heroes.map((hero) => ({
         uid: hero.uid,
         archetype: hero.archetype,
@@ -501,6 +587,8 @@ export class MatchRoom {
         cd: hero.cd,
         buffs: hero.buffs.map((b) => ({ ...b })),
         skill: heroDef(hero.archetype).skill,
+        onceUsed: [...hero.onceUsed],
+        firstSkillUsed: hero.firstSkillUsed,
       })),
     };
   }

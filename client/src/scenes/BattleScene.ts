@@ -43,7 +43,15 @@ interface GemSlot {
   special: Special | null;
 }
 
-const TARGETED_SKILLS: ReadonlySet<string> = new Set(['Burst', 'Controller', 'Debuffer', 'Bruiser']);
+const TARGETED_SKILLS: ReadonlySet<string> = new Set([
+  'Burst',
+  'Controller',
+  'Debuffer',
+  'Bruiser',
+  'Executioner',
+  'Sniper',
+  'Pyromancer',
+]);
 
 export class BattleScene extends Phaser.Scene {
   private instructionText!: Phaser.GameObjects.Text;
@@ -61,6 +69,8 @@ export class BattleScene extends Phaser.Scene {
   private ownManaBar!: StatBar;
   private enemyManaText!: Phaser.GameObjects.Text;
   private ownManaText!: Phaser.GameObjects.Text;
+  private ownThrallText!: Phaser.GameObjects.Text;
+  private enemyThrallText!: Phaser.GameObjects.Text;
   private gems: GemSlot[] = [];
 
   private view: MatchView | null = null;
@@ -176,6 +186,9 @@ export class BattleScene extends Phaser.Scene {
     this.enemyManaBar = new StatBar(this, 926, 76, 230, 12, COLORS.enemy);
     this.add.existing(this.enemyManaBar);
     this.enemyManaText = label(this, 1226, 72, '0/100', 13, COLORS.enemy, 'bold').setOrigin(1, 0);
+
+    this.ownThrallText = label(this, 54, 100, '', 11, COLORS.accent, 'bold');
+    this.enemyThrallText = label(this, 926, 100, '', 11, COLORS.enemy, 'bold');
   }
 
   private drawBoardFrame(): void {
@@ -1027,6 +1040,15 @@ export class BattleScene extends Phaser.Scene {
     this.ownManaBar.setRatios(yourMana / CONFIG.MANA_MAX);
     this.enemyManaText.setText(`${Math.round(enemyMana)}/${CONFIG.MANA_MAX}`);
     this.ownManaText.setText(`${Math.round(yourMana)}/${CONFIG.MANA_MAX}`);
+
+    const yourThrall = battle.sides[you].thrall;
+    const enemyThrall = battle.sides[opponent].thrall;
+    this.ownThrallText.setText(
+      yourThrall?.alive ? `💀 Thrall ${yourThrall.hp}/${yourThrall.maxHp}` : '',
+    );
+    this.enemyThrallText.setText(
+      enemyThrall?.alive ? `💀 Thrall ${enemyThrall.hp}/${enemyThrall.maxHp}` : '',
+    );
   }
 
   private diffHeroes(battle: BattleView, you: Side, opponent: Side): void {
@@ -1159,6 +1181,7 @@ export class BattleScene extends Phaser.Scene {
 
     heroes.forEach((hero, index) => {
       const ready = myTurn && !this.skillSpent && this.skillUsable(hero, mana);
+      const cost = this.skillCost(hero);
       const selected = this.pendingSkill === hero.uid || this.armedCaster === hero.uid;
       const accent = ready ? COLORS.accent : COLORS.dim;
 
@@ -1184,7 +1207,7 @@ export class BattleScene extends Phaser.Scene {
         this,
         0,
         5,
-        `${truncate(hero.skill.name, 11)} (${hero.skill.mana}💧)`,
+        `${truncate(hero.skill.name, 11)} (${cost}💧)`,
         11,
         accent,
         'bold',
@@ -1414,12 +1437,17 @@ export class BattleScene extends Phaser.Scene {
       return;
     }
     if (!state.alive) return;
+    if (state.skill.once === true && state.onceUsed.includes(state.skill.id)) {
+      this.showToast(`${state.skill.name} chỉ dùng 1 lần/trận`, COLORS.gold);
+      return;
+    }
     if (state.cd > 0) {
       this.showToast(`${state.skill.name} còn hồi ${state.cd} lượt`, COLORS.gold);
       return;
     }
-    if ((this.view?.battle?.sides[this.view.you].mana ?? 0) < state.skill.mana) {
-      this.showToast(`Cần ${state.skill.mana} mana`, COLORS.gold);
+    const cost = this.skillCost(state);
+    if ((this.view?.battle?.sides[this.view.you].mana ?? 0) < cost) {
+      this.showToast(`Cần ${cost} mana`, COLORS.gold);
       return;
     }
     this.armedCaster = uid;
@@ -1442,8 +1470,15 @@ export class BattleScene extends Phaser.Scene {
 
     const hero = this.heroOf(uid);
     if (!hero) return;
-    const cost = hero.skill.mana;
-    const status = !hero.alive ? 'đã gục' : hero.cd > 0 ? `hồi ${hero.cd} lượt` : `${cost} mana`;
+    const cost = this.skillCost(hero);
+    const usedOnce = hero.skill.once === true && hero.onceUsed.includes(hero.skill.id);
+    const status = !hero.alive
+      ? 'đã gục'
+      : usedOnce
+        ? 'đã dùng 1 lần/trận'
+        : hero.cd > 0
+          ? `hồi ${hero.cd} lượt`
+          : `${cost} mana`;
     this.showToast(`${hero.archetype}: ${hero.skill.name} · ${status}`, COLORS.violet);
   }
 
@@ -1456,12 +1491,17 @@ export class BattleScene extends Phaser.Scene {
       this.showToast('Mỗi lượt chỉ dùng 1 chiêu', COLORS.gold);
       return;
     }
+    if (hero.skill.once === true && hero.onceUsed.includes(hero.skill.id)) {
+      this.showToast(`${hero.skill.name} chỉ dùng 1 lần/trận`, COLORS.gold);
+      return;
+    }
     if (hero.cd > 0) {
       this.showToast(`Chiêu còn hồi ${hero.cd} lượt`, COLORS.gold);
       return;
     }
-    if (view.battle.sides[view.you].mana < hero.skill.mana) {
-      this.showToast(`Cần ${hero.skill.mana} mana`, COLORS.gold);
+    const cost = this.skillCost(hero);
+    if (view.battle.sides[view.you].mana < cost) {
+      this.showToast(`Cần ${cost} mana`, COLORS.gold);
       return;
     }
 
@@ -1529,7 +1569,17 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private skillUsable(hero: HeroView, mana: number): boolean {
-    return hero.alive && hero.cd === 0 && mana >= hero.skill.mana;
+    const usedOnce = hero.skill.once === true && hero.onceUsed.includes(hero.skill.id);
+    return hero.alive && !usedOnce && hero.cd === 0 && mana >= this.skillCost(hero);
+  }
+
+  private skillCost(hero: HeroView): number {
+    const view = this.view;
+    if (!view?.battle) return hero.skill.mana;
+    const side = view.battle.sides[view.you];
+    const chronoAlive = side.heroes.some((h) => h.alive && h.archetype === 'Chronarch');
+    const discount = chronoAlive && !hero.firstSkillUsed ? 10 : 0;
+    return Math.max(0, hero.skill.mana - discount + side.skillTax);
   }
 
   private cellCenter(index: number): { x: number; y: number } {
