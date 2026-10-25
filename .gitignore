@@ -23,3 +23,6 @@ combo-analysis.json
 shared/combo-analysis.json
 jev_*.py
 kev_*.py
+
+# Aseprite MCP scratch (local trials, demo renders)
+.aseprite-trial/
