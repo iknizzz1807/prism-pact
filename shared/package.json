@@ -16,7 +16,8 @@
     "test": "node --import tsx --test test/match3.test.ts test/combat.test.ts test/skills.test.ts test/battle.test.ts test/draft.test.ts test/bot.test.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
-    "demo": "node --import tsx scripts/demo.ts"
+    "demo": "node --import tsx scripts/demo.ts",
+    "sim": "node --import tsx scripts/bot-simulation.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
