@@ -19,5 +19,7 @@ kev-run-logs/
 jev-results.json
 kev-results.json
 kev-states.json
+combo-analysis.json
+shared/combo-analysis.json
 jev_*.py
 kev_*.py

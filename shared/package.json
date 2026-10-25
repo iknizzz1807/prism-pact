@@ -17,7 +17,9 @@
     "typecheck": "tsc --noEmit",
     "build": "tsc -p tsconfig.build.json",
     "demo": "node --import tsx scripts/demo.ts",
-    "sim": "node --import tsx scripts/bot-simulation.ts"
+    "sim": "node --import tsx scripts/bot-simulation.ts",
+    "combo": "node --import tsx scripts/combo-analysis.ts",
+    "combo:validate": "node --import tsx scripts/combo-validation.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

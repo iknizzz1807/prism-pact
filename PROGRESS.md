@@ -283,3 +283,13 @@ client/src/
     - 1.000 trận @15s: full match **9m43s** (median 9m14s, p90 13m22s), SD 3,0%, **6,5 skill/trận**, 23,7% lượt có skill, skill đầu lượt 2,6; battle animation 86,2s/trận; pick/ban animation overlap timer (nếu cộng cứng +4,8s).
     - Kết luận thời gian: **không nên cắt đôi**. 15s + draft 20/15s đã giảm 12m43s → 9m43s. Muốn ~6–7 phút phải làm **Blitz mode** riêng (HP×0.8, ATK×1.15, MAX_TURNS 35), không dùng cho ranked.
     - Test: **106 shared + 19 contracts + 34 server = 159 pass**; typecheck + build sạch.
+24. **Combo / counter / "exodia" analysis (25/10)**:
+    - `shared/scripts/combo-analysis.ts`: quét **1.140 team 3 tướng** trên common gauntlet 60, suy ra **4.845 combo 4 pick**, pair synergy và **counter matrix** (A vs B cùng 2 support, n=153).
+    - `shared/scripts/combo-validation.ts`: validate top team bằng **6 thứ tự slot**, top combo bằng **24 pick order × 4 ban**, đấu 200/100 team random.
+    - Top 3-team best order: Healer+Paladin+Sniper **82,0%**, Tank+Juggernaut+Sniper **81,5%**, Buffer+Juggernaut+Sniper **79,5%**, Juggernaut+Sniper+Cleaver **79,0%**, Tank+Controller+Cleaver **74,0%**.
+    - Thứ tự slot cực quan trọng: Tank+Juggernaut+Sniper 81,5% best vs **53,4%** avg mọi order.
+    - Ban-resistant 4-pick mạnh nhất: **Paladin+Juggernaut+Sniper+Cleaver** (order P→J→C→S), worst subset **66,0%** (P+C+S), avg 71,3%. Tiếp: P+J+Executioner+Sniper 64,0%; Tank+P+Executioner+Sniper 63,0%; Healer+J+Sniper+Cleaver 60,0%.
+    - **Không có exodia 80% bất chấp ban**; mạnh nhất ~66% worst subset, vẫn beatable nếu biết ban Juggernaut.
+    - Pair synergy: Juggernaut+Sniper +17,4pp; Tank+Burst +13,9; Juggernaut+Executioner +13,4; Paladin+Sniper +13,0; Juggernaut+Cleaver +12,9. Anti: Tank+Healer −16,3; Paladin+Juggernaut −11,4.
+    - Counter: Juggernaut > Assassin 76,5%; Healer > Assassin 74,5%; Juggernaut > Debuffer/Sniper 71,9%; Assassin worst vs Tank 20,3%.
+    - Output `shared/combo-analysis.json` (ignored). Test vẫn **159 pass**; typecheck sạch.

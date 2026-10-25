@@ -604,7 +604,64 @@ Von đã archive (10/2026); model kế thừa được khuyến nghị là
 `LiquidAI/d1-omni-600M`. Với bot Prism Pact, **Jev vẫn là lựa chọn chất lượng**;
 Von chỉ đáng thử nếu cần zero-cost và chấp nhận fallback thường xuyên.
 
-### 5.5 Chế độ chơi
+### 5.5 Combo / counter / "exodia" analysis
+
+Có 2 script để tìm combo mạnh, counter và team "bất chấp ban":
+
+```bash
+# 1. Quét toàn bộ 1.140 team 3 tướng + 4.845 combo 4 pick + counter matrix
+npm run combo --workspace shared -- 60 20261025
+
+# 2. Validate top team/combo bằng mọi thứ tự slot / pick order
+npm run combo:validate --workspace shared -- 20261025 200
+```
+
+- `combo`: mỗi team đấu với cùng một gauntlet 60 team (đổi side), suy ra win rate 3-tướng,
+  combo 4 pick (worst subset sau ban), pair synergy và counter matrix.
+- `combo:validate`: top 3-team thử **6 thứ tự slot**, top 4-combo thử **24 pick order × 4 ban**,
+  đấu 200/100 team random. Đây là bước quan trọng vì thứ tự slot ảnh hưởng rất mạnh.
+- Output: `shared/combo-analysis.json` (đã ignore, không commit).
+
+**Kết quả chính (bot heuristic, validation 200 team):**
+
+| Team 3 tướng | Best order | Avg mọi order |
+|---|---:|---:|
+| Healer + Paladin + Sniper | **82.0%** | 65.9% |
+| Tank + Juggernaut + Sniper | **81.5%** | 53.4% |
+| Buffer + Juggernaut + Sniper | **79.5%** | 55.8% |
+| Juggernaut + Sniper + Cleaver | **79.0%** | 58.3% |
+| Tank + Controller + Cleaver | **74.0%** | 56.8% |
+
+> Thứ tự slot cực quan trọng: `Tank + Juggernaut + Sniper` mạnh 81.5% ở đúng order
+> nhưng chỉ 53.4% nếu order sai. Đừng chỉ nhìn tên tướng.
+
+**Combo 4 pick khó bị ban nhất (worst subset sau khi bị ban 1):**
+
+| Combo 4 pick | Best pick order | Worst subset | Avg |
+|---|---|---:|---:|
+| Paladin + Juggernaut + Sniper + Cleaver | P → J → C → S | **66.0%** (P+C+S) | 71.3% |
+| Paladin + Juggernaut + Executioner + Sniper | P → J → E → S | 64.0% | 68.0% |
+| Tank + Paladin + Executioner + Sniper | T → P → E → S | 63.0% | 67.8% |
+| Healer + Juggernaut + Sniper + Cleaver | H → J → C → S | 60.0% | 67.3% |
+
+**Không có "exodia" 80% bất chấp mọi thứ.** Combo mạnh nhất vẫn còn ~66% ở subset yếu nhất;
+nó là ban-resistant, không phải unbeatable. Nếu đối thủ biết, họ ban Juggernaut để ép
+`Paladin + Cleaver + Sniper` (66%).
+
+**Pair synergy mạnh:** Juggernaut+Sniper +17.4pp · Tank+Burst +13.9 · Juggernaut+Executioner +13.4 ·
+Paladin+Sniper +13.0 · Juggernaut+Cleaver +12.9.  
+**Anti-synergy:** Tank+Healer −16.3pp · Paladin+Juggernaut −11.4 · Tank+Juggernaut −10.2 ·
+Healer+Juggernaut −9.5.
+
+**Counter tiêu biểu:** Juggernaut > Assassin 76.5% · Healer > Assassin 74.5% ·
+Juggernaut > Debuffer/Sniper 71.9% · Oracle > Assassin 70.6% · Berserker > Assassin 70.6% ·
+Healer > Necromancer 69.9% · Buffer > Controller 69.3% · Juggernaut > Berserker 69.3%.  
+Assassin bị counter nặng nhất: worst vs Tank chỉ **20.3%**.
+
+> Caveat: đây là bot heuristic + random gauntlet, chưa phải người chơi tối ưu. Dùng để tìm
+> candidate, sau đó test tay hoặc cho bot draft có counter-pick thật.
+
+### 5.6 Chế độ chơi
 
 | Mode | Mô tả | Tier |
 |---|---|---|
